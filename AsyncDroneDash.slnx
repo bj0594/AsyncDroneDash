@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AsyncDroneDash.Project/AsyncDroneDash.Project.csproj" />
+  <Project Path="AsyncDroneDash.Tests/AsyncDroneDash.Tests.csproj" />
+</Solution>
