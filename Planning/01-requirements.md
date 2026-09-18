@@ -142,11 +142,15 @@ The application shall handle a negative `MaxCheckpoints` value according to the 
 
 The application shall handle a negative `DelayMs` value according to the project's finalized validation contract.
 
-### E3 — Missing or unidentified drone name
+### E3 — Missing or blank drone name
 
-The application shall handle a missing/unknown drone name according to the relevant public contract. For Part D route lookup, an unknown drone is treated as not found.
+The application shall handle a missing, empty, or whitespace-only drone name according to the finalized validation contract.
 
-### E4 — Temporary control-tower failure
+### E4 — Unknown drone
+
+For Part D route lookup, an unknown drone name shall be handled as not found.
+
+### E5 — Temporary control-tower failure
 
 The application shall handle a control-tower HTTP failure or timeout according to the finalized Part D error contract when Part D is in scope.
 
@@ -178,7 +182,7 @@ The client shall use one reusable `HttpClient` and asynchronous HTTP APIs.
 
 ### PD5 — Simulation effect
 
-Retrieved route/weather data shall affect the final simulation configuration.
+Retrieved control-tower data shall affect the final simulation configuration.
 
 ### PD6 — HTTP failure handling
 

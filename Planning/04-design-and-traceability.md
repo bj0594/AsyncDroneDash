@@ -215,7 +215,7 @@ Create drones
 
 ## 8. Part D
 
-The local API is:
+The local API is hosted at `http://localhost:8080/` by the Part D demonstration. Selecting Part D starts the local control-tower service for the demonstration; no separate service process is required.
 
 ```text
 GET /route?drone=Navn
@@ -318,20 +318,21 @@ Concurrency verification combines behaviour tests with required implementation i
 | `R25` | `AC-DLV-4` | DOC09 |
 | `E1` | `AC-EDGE-1` | VB02/T02 |
 | `E2` | `AC-EDGE-2` | VB03/T03 |
-| `E3` | `AC-EDGE-3` | VB04/T06 + HTTP12 |
-| `E4` | `AC-EDGE-4` | Part D failure tests |
-| `PD1` | `AC-D1` | HTTP01 + I18 |
+| `E3` | `AC-EDGE-3` | VB04/T06 |
+| `E4` | `AC-EDGE-4` | VB-D01/HTTP08 |
+| `E5` | `AC-EDGE-5` | Part D failure tests / HTTP05/HTTP06 |
+| `PD1` | `AC-D1` | HTTP01 + I18 + I19 |
 | `PD2` | `AC-D1` | B-D01/HTTP01 |
 | `PD3` | `AC-D2` | B-D02/HTTP02 |
-| `PD4` | `AC-D3` | B-D07/HTTP08 + I16/I17 |
+| `PD4` | `AC-D3` | B-D07/HTTP09 + I16/I17 |
 | `PD5` | `AC-D4` | B-D04/HTTP04 |
 | `PD6` | `AC-D5` | B-D05/HTTP05/HTTP07 |
 | `PD7` | `AC-D6` | B-D06/HTTP06 |
-| `PD8` | `AC-D7` | B-D07/HTTP08 + I18 |
+| `PD8` | `AC-D7` | B-D07/HTTP09 + I18 |
 | `PD9` | `AC-D8` | B-D08/HTTP03 |
-| `PD10` | `AC-D9` | B-D09/HTTP09 |
-| `PD11` | `AC-D10` | B-D10/HTTP10 |
-| `PD12` | `AC-D11` | B-D11/HTTP11 |
+| `PD10` | `AC-D9` | B-D09/HTTP10 |
+| `PD11` | `AC-D10` | B-D10/HTTP11 |
+| `PD12` | `AC-D11` | B-D11/HTTP12 |
 | `PD13` | — | Bonus/out of target |
 
 ---

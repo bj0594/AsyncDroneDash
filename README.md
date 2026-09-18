@@ -44,6 +44,8 @@ Async Drone Dash/
 └── reflection.md
 ```
 
+The repository contains one README at the repository root.
+
 `TestPlan.md` belongs to the test project because it documents the test project's verification plan.
 
 ## Build
@@ -132,7 +134,7 @@ The local service can vary response time to simulate slow network conditions.
 
 ### Starting Part D
 
-The local service startup procedure will be documented here once the Part D host/startup implementation is finalized.
+Selecting Part D starts the local control-tower service automatically at `http://localhost:8080/`; no separate service process is required.
 
 ### Testing Part D
 

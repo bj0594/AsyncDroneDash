@@ -60,8 +60,9 @@ Part D is optional in the assignment and active only while it remains in the fin
 |---|---|
 | `E1` Negative MaxCheckpoints | `T02` |
 | `E2` Negative DelayMs | `T03` |
-| `E3` Missing/blank/unknown name | `T06`, `HTTP12` |
-| `E4` Control-tower failure/timeout | `HTTP05`, `HTTP06` |
+| `E3` Missing/blank name | `T06` |
+| `E4` Unknown drone | `HTTP08` |
+| `E5` Control-tower failure/timeout | `HTTP05`, `HTTP06` |
 
 ---
 
@@ -477,7 +478,7 @@ Oracle: malformed/invalid response produces `InvalidResponse`.
 
 ### HTTP08 — ControlTower_UnknownDrone_ShouldProduceNotFound
 
-`E3 → AC-EDGE-3 → VB-D01`
+`E4 → AC-EDGE-4 → VB-D12`
 
 Integration / Fact.
 
@@ -527,7 +528,7 @@ Oracle: local service can deliberately vary response time.
 
 ### I19 — PartD_UsesFinalJsonAndErrorContracts
 
-`PD1–PD12`
+`PD1–PD12`, including the finalized JSON response and error-kind contracts.
 
 ---
 

@@ -156,6 +156,8 @@ If orchestration fails:
 | `VB02` | Negative `MaxCheckpoints` is rejected | `E1 → AC-EDGE-1 → B2` |
 | `VB03` | Negative `DelayMs` is rejected | `E2 → AC-EDGE-2 → B4` |
 | `VB04` | Missing/blank name is rejected | `E3 → AC-EDGE-3 → B1` |
+| `VB-D12` | Unknown Part D route drone is reported as not found | `E4 → AC-EDGE-4 → B-D01` |
+| `VB-D05` / `VB-D06` | Part D dependency failure/timeout is handled | `E5 → AC-EDGE-5` |
 
 ---
 
@@ -213,8 +215,10 @@ Part D is optional in the assignment and active only because it is currently sel
 | `VB-D09` | Log HTTP lifecycle | `PD10 → AC-D9` |
 | `VB-D10` | Compare sequential/concurrent HTTP | `PD11 → AC-D10` |
 | `VB-D11` | Variable response time is demonstrable | `PD12 → AC-D11` |
+| `VB-D12` | Unknown route drone is reported as not found | `E4 → AC-EDGE-4 → B-D01` |
 
 ### Part D API
+
 
 ```text
 GET /route?drone=Navn

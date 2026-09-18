@@ -127,7 +127,7 @@ Part D is not required for MVP completion.
 
 # 6. Final project success
 
-The final project is successful when the MVP Definition of Done is satisfied and all selected Part D requirements `PD1–PD12` are implemented and verified.
+The final project is successful when the MVP Definition of Done is satisfied and all selected Part D requirements `PD1–PD12` are implemented and verified. The bonus `PD13` is not required.
 
 If Part D cannot be completed without putting the mandatory submission at risk, the project remains a valid MVP and Part D is omitted from the final submission.
 
@@ -313,11 +313,17 @@ A negative value is rejected with `ArgumentOutOfRangeException`.
 
 `E3`
 
-A null, empty, or whitespace-only drone name is rejected with `ArgumentException`; an unknown Part D route name is reported as not found.
+A null, empty, or whitespace-only drone name is rejected with `ArgumentException`.
 
-### AC-EDGE-4 — Control-tower failure
+### AC-EDGE-4 — Unknown drone
 
 `E4`
+
+An unknown Part D route name is reported through `ControlTowerException.NotFound`.
+
+### AC-EDGE-5 — Control-tower failure
+
+`E5`
 
 HTTP failure and timeout produce the documented `ControlTowerException` category when Part D is active.
 
