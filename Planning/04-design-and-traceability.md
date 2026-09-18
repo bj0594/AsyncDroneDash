@@ -93,7 +93,7 @@ Owns:
 
 ### Optional HTTP component
 
-Owns Part D control-tower communication if implemented.
+Owns Part D control-tower communication.
 
 ---
 
@@ -118,9 +118,11 @@ Part D:
 ```text
 Part D orchestration
       ↓
-HTTP component
+ControlTowerClient
       ↓
-Control Tower API
+HttpClient
+      ↓
+Local Control Tower
 ```
 
 No additional architectural layers are currently justified.
@@ -161,8 +163,6 @@ Create drones
 
 The no-`Join` demonstration uses the same flight scenario but deliberately omits the waiting step.
 
-The normal and demonstration paths must remain distinguishable.
-
 ---
 
 ## 6. Part B
@@ -176,9 +176,11 @@ Create drones
 → observe success/failure
 ```
 
-The failure trigger must be deterministic.
+The deterministic demonstration failure is:
 
-Exact failure and exception contracts remain open until finalized.
+`InvalidOperationException("Simulated drone failure.")`
+
+The failure is introduced by the Part B scenario, not by adding a permanent failure property to `DroneModel`.
 
 ---
 
@@ -196,9 +198,43 @@ The async path must not use `.Wait()` or `.Result`.
 
 ---
 
-## 8. Public API
+## 8. Part D
 
-The first behaviour needs a deterministic observation boundary.
+Part D uses a local `HttpListener` control tower and `HttpClient` as the client.
+
+The control tower provides:
+
+```text
+GET /api/routes/{droneName}
+GET /api/weather
+GET /api/restrictions
+```
+
+The three data sources are independent and may be requested sequentially or concurrently.
+
+### ControlTowerClient
+
+Responsible for:
+
+- HTTP requests;
+- response deserialization;
+- timeout/error handling;
+- exposing route, weather and restriction data.
+
+### Part D orchestration
+
+Responsible for:
+
+- obtaining the three data sources;
+- coordinating sequential/concurrent requests;
+- combining the data;
+- producing final simulation values.
+
+`DroneFlight` remains independent of HTTP.
+
+---
+
+## 9. Public API
 
 ### `DroneModel`
 
@@ -210,9 +246,7 @@ DelayMs : int
 
 ### `FlightEvent`
 
-Represents one observable flight event.
-
-The exact final property set may evolve if testing reveals a better observation boundary.
+Represents an observable flight event.
 
 ### `DroneFlight.Run`
 
@@ -220,15 +254,9 @@ The exact final property set may evolve if testing reveals a better observation 
 void Run(DroneModel drone, Action<FlightEvent> report)
 ```
 
-Purpose:
-
 Executes one synchronous drone flight and reports observable events.
 
-Side effect:
-
-Invokes `report`.
-
-Console output is not produced by `DroneFlight`.
+`DroneFlight` does not write directly to the console.
 
 ### `DroneFlight.RunAsync`
 
@@ -236,17 +264,11 @@ Console output is not produced by `DroneFlight`.
 Task RunAsync(DroneModel drone, Action<FlightEvent> report)
 ```
 
-Purpose:
-
 Executes one asynchronous drone flight and reports observable events.
-
-Side effect:
-
-Invokes `report`.
 
 Failure propagates through the returned task.
 
-### Part-specific orchestration
+### Part-specific orchestration APIs
 
 Exact class names and final signatures remain open until their behaviours are implemented.
 
@@ -254,33 +276,68 @@ Required contracts:
 
 - Part A: `Thread` + `Join`;
 - Part B: `Task` + TCS + `Task.WhenAll`;
-- Part C: `async` + `await Task.WhenAll` + `try/catch`.
+- Part C: `async` + `await Task.WhenAll` + `try/catch`;
+- Part D: asynchronous HTTP communication through `HttpClient`.
 
 ---
 
-## 9. Observability
+## 10. Observability
 
 `FlightEvent` provides the deterministic observation boundary for tests.
 
 The application can transform events into console output.
-
-The design therefore separates:
 
 ```text
 Flight behaviour
       ↓
 FlightEvent
       ↓
-Orchestration / Console output
+Orchestration / Console
 ```
 
-This allows automated verification without making `Console.WriteLine` the core flight API.
+This keeps console output out of the core flight logic.
 
 Exact concurrent console ordering is not a contract.
 
 ---
 
-## 10. Testability
+## 11. Part D data flow
+
+```text
+RouteData
+    ↓
+Base MaxCheckpoints
+
+WeatherData
+    ↓
+Delay adjustment
+
+RestrictionData
+    ↓
+Maximum checkpoint restriction
+```
+
+Final values:
+
+```text
+FinalMaxCheckpoints =
+    min(Route.MaxCheckpoints, Restriction.MaxCheckpoints)
+```
+
+when a restriction exists.
+
+Otherwise:
+
+```text
+FinalMaxCheckpoints =
+    Route.MaxCheckpoints
+```
+
+Weather modifies the configured delay according to the project rules in `03-domain-and-rules.md`.
+
+---
+
+## 12. Testability
 
 ### Automated behaviour
 
@@ -291,7 +348,10 @@ Exact concurrent console ordering is not a contract.
 - flight events;
 - deterministic Part B failure;
 - task completion/failure;
-- async completion/failure.
+- async completion/failure;
+- HTTP response mapping;
+- Part D simulation mapping;
+- HTTP failure/timeout.
 
 ### Implementation inspection
 
@@ -304,20 +364,23 @@ Exact concurrent console ordering is not a contract.
 - `Task.Delay`;
 - `await Task.WhenAll`;
 - `try/catch`;
-- no synchronous blocking.
+- no synchronous blocking;
+- `HttpClient`;
+- selected local HTTP technology.
 
 ### Manual observation
 
 - no-`Join` demonstration;
-- non-deterministic/interleaved console output.
+- non-deterministic console output;
+- sequential/concurrent HTTP demonstration where applicable.
 
-Detailed test scenarios are in:
+Detailed test scenarios remain in:
 
 `AsyncDroneDash.Tests/TestPlan.md`
 
 ---
 
-## 11. Requirement traceability
+## 13. Requirement traceability
 
 | ID | Requirement | Acceptance criterion | Behaviour | Verification |
 |---|---|---|---|---|
@@ -347,56 +410,39 @@ Detailed test scenarios are in:
 | `R24` | README requirements | `AC-DLV-3` | Documentation | `D07`, `D08` |
 | `R25` | Reflection requirements | `AC-DLV-4` | Reflection | `D09` |
 
-Detailed test definitions live in `AsyncDroneDash.Tests/TestPlan.md`.
+Detailed Part D verification is maintained separately in `AsyncDroneDash.Tests/TestPlan.md`.
 
 ---
 
-## 12. Part D traceability
-
-Part D is optional.
-
-| ID | Optional behaviour | Verification |
-|---|---|---|
-| `D-B1` | Route retrieval | `D10` |
-| `D-B2` | Weather retrieval | `D11` |
-| `D-B3` | Restrictions retrieval | `D12` |
-| `D-B4` | Data affects simulation | `D13` |
-| `D-B5` | HTTP failure handling | `D14` |
-| `D-B6` | Timeout handling | `D15` |
-| `D-B7` | HTTP logging | `D16` |
-| `D-B8` | Concurrent HTTP calls | `D17` |
-| `D-B9` | Sequential/concurrent comparison | `D18` |
-
----
-
-## 13. Risks
+## 14. Risks
 
 | Risk | Response |
 |---|---|
 | Thread scheduling is non-deterministic | Test completion semantics; observe race output manually |
 | Console output is unstable | Test structured events; manually observe interleaving |
-| Real delays make tests slow/flaky | Use deterministic observation seams; avoid wall-clock assertions |
-| TCS/WhenAll semantics are misunderstood | Verify with focused tests/spikes |
+| Real delays make tests slow/flaky | Avoid wall-clock assertions |
+| TCS/WhenAll semantics are misunderstood | Use focused tests before implementation |
 | Async flow becomes blocking | Inspect for `.Wait()` / `.Result` |
-| Part D expands scope | Complete A–C before committing significant D work |
-| Architecture becomes over-engineered | Add layers only when a concrete responsibility requires them |
+| Part D expands scope | Complete A–C before significant optional work |
+| Architecture becomes over-engineered | Add layers only for concrete responsibilities |
+| HTTP tests become network-dependent | Use the local control tower / controllable HTTP boundary |
 
 ---
 
-## 14. Open decisions
+## 15. Open decisions
 
-- exact validation contract;
-- exact Part B failure trigger/exception;
-- final Part A/B/C orchestration class names and signatures;
+- exact Part D response JSON contract;
+- exact public HTTP exception contract;
+- final orchestration class names/signatures;
+- exact weather-to-delay mapping location;
 - exact no-`Join` presentation;
-- whether any additional abstraction is justified;
-- final Part D architecture if implemented.
+- whether any additional abstraction becomes necessary.
 
-Open decisions should be resolved when the dependent behaviour requires them rather than being invented prematurely.
+These should be resolved before dependent test contracts are finalized.
 
 ---
 
-## 15. First behaviour
+## 16. First behaviour
 
 **VB05 — Report the first checkpoint**
 
@@ -418,29 +464,4 @@ Current interaction:
 DroneFlight.Run(DroneModel, Action<FlightEvent>)
 ```
 
-The first TDD cycle can therefore use structured flight events rather than console output.
-
----
-
-# Status
-
-### Phase 4 — Traceability and risk
-
-- [x] Requirements have IDs.
-- [x] Requirements connect to acceptance criteria.
-- [x] Acceptance criteria connect to behaviours.
-- [x] Verification connects through to `TestPlan.md`.
-- [x] Major risks identified.
-
-### Phase 5 — Solution design
-
-- [x] Responsibilities identified.
-- [x] Dependency direction established.
-- [x] Parts A–C separated by execution model.
-- [x] First public API defined.
-- [x] Deterministic observation boundary defined.
-- [x] Testability considered without adding unnecessary layers.
-- [ ] Validation contracts finalized.
-- [ ] Part B failure contract finalized.
-- [ ] Part-specific orchestration APIs finalized when their behaviours are implemented.
-- [ ] Part D architecture finalized if Part D enters implementation.
+The first TDD cycle can therefore observe structured flight events without depending on console output.

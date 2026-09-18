@@ -6,7 +6,7 @@ Async Drone Dash models multiple delivery drones progressing through simple chec
 
 The domain is intentionally small because the project is primarily a demonstration of concurrent and asynchronous execution.
 
-The core domain does not model physical movement, geography, fuel, battery, packages, customers, or route optimization.
+The core domain does not model physical movement, geography, fuel, battery, packages, customers, route optimization, or realistic weather simulation.
 
 ---
 
@@ -22,6 +22,21 @@ No additional properties are currently required by the MVP.
 
 ---
 
+## FlightEvent
+
+A flight produces observable events:
+
+- `Started`
+- `CheckpointReached`
+- `Completed`
+- `Faulted`
+
+A `CheckpointReached` event contains the checkpoint number.
+
+The event model provides a deterministic observation boundary for tests and orchestration. The core flight logic does not write directly to the console.
+
+---
+
 ## Flight behaviour
 
 A valid drone flight progresses from checkpoint `0` through `MaxCheckpoints`, inclusive.
@@ -32,7 +47,7 @@ Example:
 
 `DelayMs` applies between consecutive checkpoint steps.
 
-A normal flight therefore follows the conceptual pattern:
+A normal flight therefore follows:
 
 `Start → Checkpoint 0 → Delay → Checkpoint 1 → ... → Checkpoint MaxCheckpoints → Completed`
 
@@ -104,7 +119,11 @@ Multiple drone tasks are coordinated using `Task.WhenAll`.
 
 A defined failure condition causes the affected drone operation to fail.
 
-The exact trigger remains open.
+The selected demonstration failure is:
+
+`InvalidOperationException("Simulated drone failure.")`
+
+The failure is introduced by the Part B scenario rather than by adding a permanent failure property to `DroneModel`.
 
 ### B14 — Failure propagation
 
@@ -137,6 +156,66 @@ Multiple flights are coordinated using `await Task.WhenAll`.
 ### B20 — Async failure handling
 
 When an async flight fails, the failure reaches orchestration and is handled with `try/catch`.
+
+---
+
+## Part D — Control Tower
+
+Part D is optional in the assignment but is currently a project target.
+
+The project uses a local `HttpListener` service as the control tower and `HttpClient` as the client.
+
+The control tower provides three categories of data:
+
+### Route data
+
+Provides the base `MaxCheckpoints` for a drone route.
+
+### Weather data
+
+Provides weather information that can affect the final `DelayMs`.
+
+The initial supported conditions are:
+
+- `clear`
+- `wind`
+- `storm`
+
+The exact delay adjustments are project decisions and are kept in the Part D design rather than in the core `DroneModel`.
+
+### Restriction data
+
+Provides an optional maximum checkpoint restriction.
+
+A restriction may reduce the route's usable `MaxCheckpoints`, but must not increase it.
+
+---
+
+## Part D rules
+
+The final simulation configuration is derived from the control-tower data.
+
+### Checkpoints
+
+Without a restriction:
+
+`FinalMaxCheckpoints = RouteMaxCheckpoints`
+
+With a restriction:
+
+`FinalMaxCheckpoints = min(RouteMaxCheckpoints, RestrictionMaxCheckpoints)`
+
+### Delay
+
+Weather may modify the drone's configured `DelayMs`.
+
+The resulting delay must still satisfy the normal `DelayMs >= 0` rule.
+
+### HTTP independence
+
+Route, weather and restriction requests represent independent data sources and may be requested sequentially or concurrently.
+
+Both approaches must produce equivalent simulation input.
 
 ---
 
@@ -177,7 +256,7 @@ A formal state-machine implementation is not required.
 
 ### Configuration
 
-- `Name` is not blank.
+- `Name` must not be null, empty, or whitespace.
 - `MaxCheckpoints >= 0`.
 - `DelayMs >= 0`.
 
@@ -208,36 +287,15 @@ A formal state-machine implementation is not required.
 | Valid drone configuration | Allow normal flight |
 | `MaxCheckpoints = 0` | Report checkpoint `0` and complete |
 | `MaxCheckpoints > 0` | Report `0..MaxCheckpoints` in order |
-| `MaxCheckpoints < 0` | Must be handled; exact behaviour TBD |
-| `DelayMs < 0` | Must be handled; exact behaviour TBD |
-| Missing/blank name | Must be handled; exact behaviour TBD |
-| Unknown drone | Relevant only if a lookup/registry exists; exact behaviour TBD |
+| `MaxCheckpoints < 0` | Reject with `ArgumentOutOfRangeException` |
+| `DelayMs < 0` | Reject with `ArgumentOutOfRangeException` |
+| Missing/blank name | Reject with `ArgumentException` |
+| Unknown drone | Relevant only if a lookup/registry exists |
 | Multiple drones | Can execute concurrently |
 | Part B failure | Affected operation becomes faulted |
-| API/weather failure | Relevant only if Part D is implemented |
+| HTTP non-success response | Control-tower operation fails |
+| HTTP timeout | Control-tower operation fails |
 | Cancellation | Deferred |
-
----
-
-## Error scenarios
-
-### Invalid configuration
-
-The assignment identifies negative checkpoint/delay values and missing/unknown drone information as cases that should be handled.
-
-The exact response, exception type, and validation location are not yet fixed.
-
-### Part B failure
-
-The failure must be deterministic and observable.
-
-It should produce a faulted task and allow the task/TCS propagation required by the assignment to be demonstrated.
-
-The exact trigger is TBD.
-
-### Part D failure
-
-If Part D is implemented, HTTP/weather failures and timeouts become additional scenarios. Their detailed rules belong to the Part D design.
 
 ---
 
@@ -246,6 +304,10 @@ If Part D is implemented, HTTP/weather failures and timeouts become additional s
 ### DroneModel
 
 Represents the configuration of one drone.
+
+### FlightEvent
+
+Represents observable flight progress and outcome.
 
 ### Drone flight
 
@@ -261,7 +323,7 @@ Starts the selected demonstration and presents its results. It does not own the 
 
 ### Optional HTTP component
 
-Provides control-tower data when Part D is implemented. It does not own drone orchestration.
+Provides control-tower data for Part D. It does not own drone orchestration.
 
 ---
 
@@ -276,17 +338,18 @@ The MVP does not contain domain concepts for:
 - battery;
 - package/cargo;
 - customer;
-- route optimization;
-- real-world weather simulation.
+- route optimization.
 
-Part D may introduce route, weather, and restriction data if that extension is implemented.
+Part D may introduce route, weather and restriction data without turning the core drone model into a full physical simulation.
 
 ---
 
 ## Open domain decisions
 
-- Exact validation response for negative `MaxCheckpoints`.
-- Exact validation response for negative `DelayMs`.
-- Exact treatment of missing/unknown drones.
-- Exact Part B failure trigger.
-- Any additional model required by Part D.
+- Exact Part D response/data contract.
+- Exact Part D public exception contract.
+- Exact treatment of an unknown drone if a lookup mechanism is introduced.
+- Final Part D orchestration API.
+- Exact weather-to-delay mapping.
+
+Optional features such as cancellation, retry/backoff and `IAsyncEnumerable` remain outside the current scope.
