@@ -9,11 +9,9 @@ The solution should remain small and make the differences between Parts A–C vi
 | A | `Thread` | `Join` |
 | B | `Task` + `TaskCompletionSource` | `Task.WhenAll` |
 | C | `async`/`await` | `await Task.WhenAll` |
-| D | `HttpClient` / optional `HttpListener` | Sequential or concurrent async calls |
+| D | `HttpClient` / `HttpListener` | Sequential or concurrent async calls |
 
-The design should not hide the required execution-model differences behind unnecessary abstractions.
-
-Additional layers require a concrete responsibility.
+The design should not hide required execution-model differences behind unnecessary abstractions.
 
 ---
 
@@ -23,7 +21,7 @@ Additional layers require a concrete responsibility.
 
 - display menu;
 - accept selection;
-- start the selected demonstration;
+- start selected demonstration;
 - present results/errors;
 - return to menu or exit.
 
@@ -31,22 +29,16 @@ Does not own drone-flight or concurrency logic.
 
 ### DroneModel
 
-Represents:
-
-- `Name`
-- `MaxCheckpoints`
-- `DelayMs`
+Represents `Name`, `MaxCheckpoints`, and `DelayMs`.
 
 ### FlightEvent
 
-Represents an observable flight event:
+Represents observable flight events:
 
 - `Started`
 - `CheckpointReached`
 - `Completed`
 - `Faulted`
-
-A checkpoint event contains the checkpoint number.
 
 ### DroneFlight
 
@@ -63,53 +55,27 @@ Does not own console output or multi-drone orchestration.
 
 ### Part A orchestration
 
-Owns:
-
-- one `Thread` per drone;
-- starting threads;
-- normal `Join` behaviour;
-- no-`Join` demonstration;
-- overall completion.
+Owns thread creation, start, `Join`, the no-Join demonstration, and overall completion.
 
 ### Part B orchestration
 
-Owns:
-
-- one `TaskCompletionSource` per drone;
-- starting drone work;
-- successful/faulted completion;
-- `Task.WhenAll`;
-- failure propagation;
-- `Task.Exception` demonstration.
+Owns one TCS per drone, task completion/failure, `Task.WhenAll`, failure propagation, and `Task.Exception` demonstration.
 
 ### Part C orchestration
 
-Owns:
-
-- starting multiple async flights;
-- `await Task.WhenAll`;
-- orchestration-level `try/catch`.
+Owns async flight startup, `await Task.WhenAll`, and orchestration-level `try/catch`.
 
 ### ControlTowerClient
 
 Conditional on Part D.
 
-Owns:
-
-- asynchronous HTTP requests;
-- response deserialization;
-- timeout/error handling;
-- exposing route, weather and restriction data.
-
-The client should reuse a `HttpClient` rather than create one per request.
+Owns asynchronous HTTP requests, response mapping, timeout/error handling, and HTTP client reuse.
 
 ### Local Control Tower
 
 Conditional on Part D.
 
 Owns the local HTTP service and deterministic demonstration responses.
-
-The server is an assignment-specific learning component, not a general-purpose production HTTP architecture.
 
 ---
 
@@ -139,7 +105,7 @@ Local Control Tower
 
 `DroneFlight` has no dependency on HTTP.
 
-No additional Core/Application/Infrastructure layers are currently justified.
+No additional architectural layers are currently justified.
 
 ---
 
@@ -157,8 +123,6 @@ Parts A–C use the same underlying flight concept:
 5. report `Completed`.
 
 For `MaxCheckpoints = 0`, checkpoint `0` is reported and no intermediate delay is required.
-
-The execution and coordination model changes between Parts A–C, not the basic domain behaviour.
 
 ---
 
@@ -183,7 +147,7 @@ Create and start Threads
 → main thread continues
 ```
 
-The exact cross-thread console order is not a contract.
+Exact cross-thread console order is not a contract.
 
 ---
 
@@ -198,9 +162,15 @@ Create drones
 → observe success/failure
 ```
 
-The selected failure condition is introduced by the Part B scenario rather than by adding a permanent failure property to `DroneModel`.
+The selected failure is introduced by the Part B scenario rather than by adding a failure property to `DroneModel`.
 
-The final failure trigger must be identical in domain rules, behaviour design and tests.
+Failure contract:
+
+```text
+InvalidOperationException("Simulated drone failure.")
+```
+
+A worker failure faults the relevant TCS. The aggregate operation therefore becomes faulted and exposes the failure through `Task.Exception`.
 
 ---
 
@@ -216,7 +186,7 @@ Create drones
 
 The async path must not use `.Wait()` or `.Result`.
 
-Multiple async flights must have an observable opportunity to overlap; completion alone is not sufficient evidence of concurrency.
+Multiple flights must have an observable opportunity to overlap; eventual completion alone is not sufficient evidence of concurrency.
 
 ---
 
@@ -224,68 +194,57 @@ Multiple async flights must have an observable opportunity to overlap; completio
 
 Part D is optional and currently selected as the project's final target.
 
-The project uses the local-service alternative offered by the assignment.
+The project uses the local `HttpListener` alternative supplied by the assignment and `HttpClient` for the client.
 
-### Client
-
-`ControlTowerClient` uses `HttpClient` and asynchronous request APIs.
-
-### Local service
-
-The local service uses `HttpListener` because the assignment explicitly provides that option.
-
-The server must handle requests asynchronously rather than through blocking request handling.
-
-### Endpoints
-
-The local API follows the assignment's suggested form:
+### Local endpoints
 
 ```text
 GET /route?drone=Navn
 GET /weather
 ```
 
-Optional extension:
+Optional:
 
 ```text
 GET /restrictions
 ```
 
-`/route?drone=Navn` uses the request's `RawUrl`/query data to determine the requested drone.
+The route request uses the query data available through the request URL/`RawUrl` to identify the drone.
 
-### Control-tower data
+### ControlTowerClient
 
-The client obtains:
+The client:
 
-- route information;
-- weather information;
-- optional temporary restrictions.
+- reuses one `HttpClient`;
+- uses asynchronous HTTP APIs;
+- deserializes valid responses;
+- translates dependency failures into `ControlTowerException`.
 
-The retrieved information is converted into the final simulation configuration before the drone flight begins.
+### ControlTowerException
 
-### Variable response time
+The public error categories are:
 
-The local service may introduce variable response time to simulate slow network conditions.
+- `RequestFailed` — non-success HTTP response or connection-level request failure;
+- `Timeout` — request exceeded the configured timeout;
+- `InvalidResponse` — response data cannot be deserialized or fails response validation.
 
-This is a demonstration mechanism, not a timing correctness requirement.
+The exception must preserve the underlying cause where useful.
 
-### Sequential versus concurrent requests
+### Local service
 
-Independent control-tower requests may be performed:
+The local `HttpListener` uses asynchronous request handling and must not use blocking `GetContext()` as its normal request loop.
 
-```text
-sequentially
-```
+The local service can deliberately vary response time to simulate slow network conditions.
 
-or:
+The variable delay is demonstration behaviour, not an exact timing contract.
 
-```text
-concurrently
-```
+### Sequential/concurrent requests
 
-Both approaches must produce equivalent functional data.
+Independent route, weather, and optional restriction requests may be executed sequentially or concurrently.
 
-Performance may be observed, but exact elapsed time is not a correctness oracle.
+Both modes must produce equivalent functional data.
+
+Performance is observed separately and is not a brittle correctness oracle.
 
 ---
 
@@ -301,15 +260,9 @@ DelayMs : int
 
 Represents drone configuration.
 
----
-
 ### `FlightEvent`
 
 Represents observable flight progress/outcome.
-
-No direct console side effect belongs to the event model.
-
----
 
 ### `DroneFlight.Run`
 
@@ -319,19 +272,17 @@ void Run(DroneModel drone, Action<FlightEvent> report)
 
 Purpose:
 
-Executes one synchronous drone flight and reports observable flight events.
+Executes one synchronous drone flight and reports observable events.
 
 Exceptions:
 
-- invalid configuration follows the validation contract in `03-domain-and-rules.md`;
-- flight-specific failure follows the final Part B failure contract where applicable.
+- invalid configuration uses the validation contract in `03-domain-and-rules.md`;
+- the final Part B failure contract applies where that scenario is used.
 
 Side effects:
 
 - invokes `report`;
 - does not write directly to the console.
-
----
 
 ### `DroneFlight.RunAsync`
 
@@ -341,7 +292,7 @@ Task RunAsync(DroneModel drone, Action<FlightEvent> report)
 
 Purpose:
 
-Executes one asynchronous drone flight and reports observable flight events.
+Executes one asynchronous drone flight and reports observable events.
 
 Exceptions:
 
@@ -352,36 +303,23 @@ Side effects:
 - invokes `report`;
 - does not write directly to the console.
 
-The method must remain asynchronous throughout its execution path.
+The method remains asynchronous throughout its execution path.
 
----
-
-### Part-specific orchestration APIs
-
-Exact class names and final signatures remain open until the corresponding behaviours are implemented.
-
-Required contracts:
-
-- Part A: `Thread` + `Join`;
-- Part B: `Task` + TCS + `Task.WhenAll`;
-- Part C: `async` + `await Task.WhenAll` + `try/catch`.
-
----
-
-### `ControlTowerClient` — conditional Part D
+### `ControlTowerClient` — conditional
 
 Purpose:
 
-Retrieves route, weather and optional restriction data from the control tower.
+Retrieves route, weather and optional restriction data asynchronously.
 
-The final public methods and exact exception contract are still open.
+Public operations and exact parameter types remain open until Part D implementation design is finalized.
+
+Exceptions:
+
+Failures are represented through the `ControlTowerException` categories above.
 
 Side effects:
 
-- performs asynchronous HTTP requests;
-- may produce request lifecycle logging if the final Part D scope includes it.
-
-The client should reuse its `HttpClient`.
+Performs asynchronous HTTP requests and may emit request lifecycle logs if that optional behaviour is included.
 
 ---
 
@@ -397,11 +335,9 @@ FlightEvent
 Orchestration / Console
 ```
 
-This allows tests to verify behaviour without making console output the system-under-test boundary.
+This keeps console formatting out of the flight behaviour.
 
-Concurrent console ordering remains intentionally non-deterministic.
-
-For concurrency tests, the oracle must prove meaningful overlap or coordination rather than merely checking that all operations eventually completed.
+Concurrency verification must prove meaningful overlap or coordination rather than merely checking that every operation eventually completed.
 
 ---
 
@@ -429,25 +365,19 @@ DroneFlight
 
 If a restriction exists:
 
-```text
-FinalMaxCheckpoints =
-min(RouteMaxCheckpoints, RestrictionMaxCheckpoints)
-```
+`FinalMaxCheckpoints = min(RouteMaxCheckpoints, RestrictionMaxCheckpoints)`
 
 Otherwise:
 
-```text
-FinalMaxCheckpoints =
-RouteMaxCheckpoints
-```
+`FinalMaxCheckpoints = RouteMaxCheckpoints`
 
-Weather changes the final `DelayMs` according to the mapping defined in `03-domain-and-rules.md`.
+`FinalDelayMs = Drone.DelayMs + Weather.DelayAdjustmentMs`
+
+The final values must satisfy core validation.
 
 ---
 
 ## 12. Implementation-specific contracts
-
-The following requirements are intentionally verified through implementation inspection as well as observable behaviour:
 
 | Requirement | Inspection |
 |---|---|
@@ -464,6 +394,7 @@ The following requirements are intentionally verified through implementation ins
 | `R20` | Orchestration `try/catch` |
 | `PD4` | Async `HttpClient` APIs |
 | `PD8` | No synchronous blocking in HTTP flow |
+| `PD1` | Local `HttpListener` request handling |
 
 ---
 
@@ -491,7 +422,7 @@ The following requirements are intentionally verified through implementation ins
 | `R18` | Multiple async flights | `AC-C3` | `B18` |
 | `R19` | await Task.WhenAll | `AC-C4` | `B19` |
 | `R20` | try/catch | `AC-C5` | `B20` |
-| `R21` | Part B/C comparison | `AC-C6` | Comparison behaviour |
+| `R21` | Part B/C comparison | `AC-C6` | Comparison |
 | `R22` | Menu A–D | `AC-DLV-1` | Menu |
 | `R23` | GitHub | `AC-DLV-2` | Delivery |
 | `R24` | README | `AC-DLV-3` | Documentation |
@@ -504,7 +435,7 @@ The following requirements are intentionally verified through implementation ins
 | `PD1` | Control-tower service | `AC-D1` | Control-tower service |
 | `PD2` | Route data | `AC-D1` | `B-D01` |
 | `PD3` | Weather data | `AC-D2` | `B-D02` |
-| `PD4` | Async HTTP consumption | `AC-D3` | `B-D03` |
+| `PD4` | Async HTTP consumption | `AC-D3` | `B-D07` |
 | `PD5` | Simulation effect | `AC-D4` | `B-D04` |
 | `PD6` | HTTP failure handling | `AC-D5` | `B-D05` |
 | `PD7` | Timeout handling | `AC-D6` | `B-D06` |
@@ -515,7 +446,7 @@ The following requirements are intentionally verified through implementation ins
 | `PD12` | Variable response time | `AC-D11` | `B-D11` |
 | `PD13` | Drone registration bonus | — | Optional extension |
 
-Verification/test IDs are maintained in `AsyncDroneDash.Tests/TestPlan.md`.
+Verification IDs are maintained in `AsyncDroneDash.Tests/TestPlan.md`.
 
 ---
 
@@ -523,30 +454,26 @@ Verification/test IDs are maintained in `AsyncDroneDash.Tests/TestPlan.md`.
 
 | Risk | Response |
 |---|---|
-| Thread scheduling is non-deterministic | Test completion/overlap semantics; manually observe output |
+| Thread scheduling is non-deterministic | Test completion/overlap semantics; observe race output manually |
 | Console output is unstable | Test structured events; manually observe interleaving |
-| Timing tests become flaky | Avoid wall-clock correctness assertions |
+| Timing tests become flaky | Avoid exact wall-clock correctness assertions |
 | Part B failure semantics are misunderstood | Use explicit failure contract and focused tests |
-| `Task.WhenAll` failure semantics are misunderstood | Test combined success and fault states |
+| `Task.WhenAll` fault semantics are misunderstood | Test task states and exception information |
 | Async flow becomes blocking | Inspect for `.Wait()` / `.Result` |
-| HTTP tests depend on network | Use controllable local service/test boundary |
-| New Part D features expand scope | Keep A–C as protected MVP |
+| HTTP tests depend on external network | Use controllable local HTTP boundary |
+| Part D expands scope | Protect A–C as MVP |
 | Architecture becomes over-engineered | Add components only for concrete responsibilities |
 
 ---
 
 ## 15. Open design decisions
 
-- Exact Part B failure trigger.
-- Exact Part B failure exception contract.
-- Exact validation exception/interaction boundary.
-- Exact Part D JSON response schemas.
-- Exact Part D HTTP exception contract.
-- Exact weather-to-delay mapping.
-- Exact restriction data contract.
-- Final orchestration class names and signatures.
+- final Part D JSON response schemas;
+- exact public Part D method signatures;
+- whether HTTP lifecycle logging remains in final scope;
+- final restriction response contract.
 
-These must be resolved before the dependent test contracts are finalized.
+Core validation, Part B failure, endpoint structure, weather mapping, HTTP exception categories, client reuse, and asynchronous local-server handling are now locked.
 
 ---
 
@@ -563,40 +490,25 @@ Scenario:
 ```text
 Given a valid drone with MaxCheckpoints = 0
 When the basic flight executes
-Then checkpoint 0 is observable
+Then CheckpointReached(0) is observable
 ```
 
 Current observation boundary:
 
-```text
-DroneFlight.Run(DroneModel, Action<FlightEvent>)
-```
-
-The first test should verify the observable behaviour, not console formatting.
+`DroneFlight.Run(DroneModel, Action<FlightEvent>)`
 
 ---
 
-# Status
+## Status
 
-### Phase 4 — Traceability
-
-- [x] `R1–R25` mapped to acceptance criteria.
-- [x] `R1–R25` mapped to behaviours.
-- [x] Conditional `PD1–PD13` mapped.
-- [x] Part C acceptance criteria separated.
-- [x] Core delay has its own acceptance criterion.
-- [ ] Final verification IDs synchronized in TestPlan.
-
-### Phase 5 — Design
-
-- [x] Responsibilities identified.
-- [x] Dependency direction established.
-- [x] Public API identified.
-- [x] FlightEvent observation boundary established.
-- [x] Part A–C execution models separated.
-- [x] Part D client/server direction established.
-- [x] HttpClient reuse specified.
-- [x] Async HTTP direction specified.
-- [ ] Final Part D response contract.
-- [ ] Final exception contracts.
-- [ ] Final Part-specific orchestration signatures.
+- [x] Requirements mapped.
+- [x] Acceptance criteria mapped.
+- [x] Behaviours mapped.
+- [x] Public API defined for the core flight.
+- [x] Part B failure contract defined.
+- [x] Part D endpoint direction defined.
+- [x] HTTP exception categories defined.
+- [x] HttpClient reuse defined.
+- [x] Async local-server handling defined.
+- [ ] Final Part D JSON schemas.
+- [ ] Final Part D public method signatures.
