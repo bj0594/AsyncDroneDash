@@ -33,9 +33,12 @@ A flight produces observable events:
 
 The observable event shape is:
 
+    DroneName  : string
     Type       : FlightEventType
     Checkpoint : int?
     Exception  : Exception?
+
+Every `FlightEvent` identifies the drone that produced it through `DroneName`.
 
 Event data rules:
 
@@ -139,7 +142,7 @@ Multiple drone tasks are coordinated with `Task.WhenAll`.
 
 ### B13 — Deterministic failure
 
-The Part B demonstration designates one participating drone as the simulated failure target. After the scenario's failure trigger, that drone's TCS is faulted with:
+The Part B demonstration designates one participating drone as the simulated failure target. After that drone reports checkpoint `1`, its TCS is faulted with:
 
 `InvalidOperationException("Simulated drone failure.")`
 
@@ -175,7 +178,7 @@ Multiple async flights are coordinated using `await Task.WhenAll`.
 
 ### B20 — Async failure handling
 
-The Part C demonstration uses the same deterministic failure scenario as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`. The failure reaches orchestration and is handled with `try/catch`.
+The Part C demonstration uses the same deterministic failure scenario as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`. The failure propagates to the Part C orchestration boundary, where the documented error-handling path handles it without treating the run as successful.
 
 ---
 

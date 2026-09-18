@@ -7,7 +7,9 @@ Async Drone Dash is a C# console application that simulates multiple delivery dr
 The project demonstrates and compares:
 
 1. `Thread` + `Join`
+
 2. `Task` + `TaskCompletionSource`
+
 3. `async`/`await`
 
 Part D is optional in the assignment and concerns asynchronous HTTP communication with a control-tower service.
@@ -26,7 +28,11 @@ The project shall provide a runnable C# console application.
 
 ### R2 — Drone model
 
-Each drone shall have `Name`, `MaxCheckpoints`, and `DelayMs`.
+Each drone shall have:
+
+- `Name` (`string`);
+- `MaxCheckpoints` (`int`);
+- `DelayMs` (`int`).
 
 ### R3 — Checkpoint progression
 
@@ -38,7 +44,7 @@ The configured `DelayMs` shall be applied between checkpoint steps.
 
 ### R5 — Progress reporting
 
-The application shall report drone start, each checkpoint reached, and drone completion.
+The application shall make drone start, each checkpoint reached, and drone completion observable during a flight.
 
 ## Part A — Thread Race
 
@@ -186,7 +192,7 @@ Retrieved route, weather, and active restriction data shall affect the final sim
 
 ### PD6 — HTTP failure handling
 
-Non-success HTTP responses and connection-level request failures shall produce the documented control-tower failure behaviour.
+Non-success HTTP responses other than the documented `404` / `NotFound` case, and connection-level request failures, shall produce the documented control-tower failure behaviour.
 
 ### PD7 — Timeout handling
 

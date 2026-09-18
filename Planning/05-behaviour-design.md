@@ -3,22 +3,39 @@
 ## 1. Common flight behaviour
 
 Start
+
   ↓
+
 Validate configuration
+
   ↓
+
 Report Started
+
   ↓
+
 Checkpoint 0
+
   ↓
+
 More checkpoints?
+
  ├─ No → Completed
+
  └─ Yes
+
       ↓
+
    DelayMs
+
       ↓
+
    Next checkpoint
+
       ↓
+
    Report checkpoint
+
       └──→ More checkpoints?
 
 Checkpoint progression is inclusive:
@@ -36,17 +53,25 @@ For `MaxCheckpoints = 0`:
 ### Flow
 
     Create drones
+
     → create one Thread per drone
+
     → start all Threads
+
     → execute drone flights
+
     → Join all Threads
+
     → report overall completion
 
 No-Join:
 
     Create and start Threads
+
     → do not Join
+
     → main thread continues
+
     → drone Threads continue
 
 | Behaviour | Traceability |
@@ -65,12 +90,21 @@ Exact scheduling order is not a contract.
 ### Flow
 
     Create drones
+
     → create one TCS per drone
+
     → start drone work
+
     → selected failure target reaches checkpoint 1
+
+    → report Faulted FlightEvent for selected failure drone
+
     → fault target TCS
+
     → complete/fault remaining TCS values
+
     → Task.WhenAll
+
     → observe success/failure
 
 Failure contract:
@@ -95,10 +129,15 @@ The selected failure target fails immediately after reporting checkpoint `1`.
 ### Flow
 
     Create drones
+
     → start async flights
-    → await Task.Delay between checkpoints
-    → await Task.WhenAll
-    → try/catch
+
+    → try
+        → await Task.WhenAll
+    → catch
+        → report Faulted FlightEvent
+        → rethrow original failure
+    → Console / Menu handles propagated failure
 
 `.Wait()` and `.Result` are prohibited in the async execution path.
 
@@ -137,7 +176,7 @@ The Part C failure demonstration uses the same deterministic failure scenario as
 | `VB10` | Join waits for all drones | `R7 → AC-A2 → B7` |
 | `VB11` | No-Join allows main-thread continuation | `R8 → AC-A3 → B8` |
 | `VB12` | Concurrent console output can be interleaved | `R9 → AC-A4 → B9` |
-| `VB13` | Each drone retains its own progress sequence | `R5 → AC-CORE-5` |
+| `VB13` | Each drone's FlightEvent sequence can be distinguished by `DroneName` and retains the correct progress sequence | `R5 → AC-CORE-5` |
 | `VB14` | Multiple Thread flights make meaningful overlapping progress | `R6 → AC-A1 → B6` |
 
 ---
@@ -152,7 +191,7 @@ The Part C failure demonstration uses the same deterministic failure scenario as
 | `VB18` | Simulated failure faults after checkpoint `1` | `R13 → AC-B4 → B13` |
 | `VB19` | Failure reaches orchestration | `R14 → AC-B5 → B14` |
 | `VB20` | Task.Exception exposes the fault | `R15 → AC-B6 → B15` |
-| `VB21` | Combined Task.WhenAll failure cannot report false success | `R12/R14 → AC-B3/AC-B5` |
+| `VB21` | A Task.WhenAll failure identifies the failing drone, preserves the faulted state, allows the other participating drone to reach its terminal state, and does not report false success | `R12/R14 → AC-B3/AC-B5` |
 
 ---
 
@@ -164,7 +203,7 @@ The Part C failure demonstration uses the same deterministic failure scenario as
 | `VB23` | Checkpoint delay is asynchronous | `R17 → AC-C2 → B17` |
 | `VB24` | Multiple async flights make overlapping progress | `R18 → AC-C3 → B18` |
 | `VB25` | Await Task.WhenAll coordinates completion | `R19 → AC-C4 → B19` |
-| `VB26` | Async failure is handled by orchestration | `R20 → AC-C5 → B20` |
+| `VB26` | Async failure produces a Faulted FlightEvent, propagates from orchestration, and is handled without reporting successful completion | `R20 → AC-C5 → B20` |
 | `VB27` | Part B and Part C can be compared | `R21 → AC-C6` |
 
 ---
@@ -200,7 +239,9 @@ Part D is optional in the assignment and active because it is currently selected
 The local API is:
 
     GET /route?drone=Navn
+
     GET /weather
+
     GET /restrictions
 
 The `/route` behaviour reads the requested drone name from the request URL/query data, with `RawUrl` available as the assignment-specific learning point. The selected project uses the deterministic drone-name-to-route mapping defined in `03-domain-and-rules.md`.
@@ -210,20 +251,31 @@ The `/route` behaviour reads the requested drone name from the request URL/query
 ## 11. Behaviour relationships
 
     Core
+
     ├── B1–B5
+
     │   └── VB01–VB08
+
     ├── Part A
+
     │   └── B6–B9 → VB09–VB14
+
     ├── Part B
+
     │   └── B10–B15 → VB15–VB21
+
     └── Part C
+
         └── B16–B20 → VB22–VB26
+
             └── R21/AC-C6 → VB27
 
     Optional Part D
+
     └── VB-D00–VB-D11
 
     Edge cases
+
     └── VB-E04–VB-E05
 
 ---
@@ -239,7 +291,9 @@ Traceability:
 Scenario:
 
     Given a valid drone with MaxCheckpoints = 0
+
     When the basic flight executes
+
     Then CheckpointReached(0) is observable
 
 Observation boundary:
@@ -253,10 +307,17 @@ The first test verifies structured behaviour rather than console formatting.
 ## 13. Status
 
 - [x] Core behaviours defined.
+
 - [x] Part A behaviours defined.
+
 - [x] Part B behaviours defined.
+
 - [x] Part C behaviours defined.
+
 - [x] Part D target behaviours defined.
+
 - [x] Edge cases mapped.
+
 - [x] Concurrency overlap represented as observable behaviour.
+
 - [x] First TDD behaviour selected.

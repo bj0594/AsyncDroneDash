@@ -5,6 +5,7 @@
 The project has two scope levels:
 
 1. **MVP** — all mandatory assignment requirements.
+
 2. **Final target** — MVP plus the optional Part D, which this project intends to implement.
 
 Part D must not jeopardize completion of the mandatory MVP.
@@ -18,44 +19,67 @@ Part D must not jeopardize completion of the mandatory MVP.
 ### Core
 
 - Runnable C# console application.
+
 - Drone model with `Name`, `MaxCheckpoints`, and `DelayMs`.
+
 - Checkpoint progression from `0` to `MaxCheckpoints`.
+
 - Configured delay between checkpoint steps.
+
 - Start, checkpoint, and completion reporting.
 
 ### Part A
 
 - At least two concurrent drones.
+
 - Separate `Thread` per drone.
+
 - `Thread.Join` in the normal run.
+
 - No-`Join` demonstration.
+
 - Observable non-deterministic/interleaved console output.
 
 ### Part B
 
 - `Task`-based drone flights.
+
 - One `TaskCompletionSource` per drone.
+
 - At least two drones.
+
 - `Task.WhenAll`.
+
 - Deterministic failure scenario.
+
 - Failure propagation.
+
 - `Task.Exception` observation.
 
 ### Part C
 
 - Async drone-flight method.
+
 - `await Task.Delay`.
+
 - Multiple overlapping async flights.
+
 - `await Task.WhenAll`.
+
 - Orchestration-level `try/catch`.
+
 - Comparison with Part B.
 
 ### Delivery
 
 - GitHub repository.
+
 - Runnable application.
+
 - Menu for Parts A–D.
+
 - Root `README.md`.
+
 - `reflection.md`.
 
 ---
@@ -69,17 +93,29 @@ Part D is optional in the assignment but is currently selected as a project targ
 Everything in the MVP, plus:
 
 - local `HttpListener` control tower;
+
 - reusable `HttpClient` client;
+
 - asynchronous HTTP requests;
+
 - `/route?drone=Navn`;
+
 - `/weather`;
+
 - `/restrictions`;
+
 - route/weather/restriction data mapping;
+
 - HTTP failure handling;
+
 - timeout handling;
+
 - `ControlTowerException` with explicit error categories;
+
 - HTTP request lifecycle logging;
+
 - sequential versus concurrent HTTP comparison;
+
 - variable local response time.
 
 The final Part D data, error, and mapping contracts are defined in `03-domain-and-rules.md` and `04-design-and-traceability.md`.
@@ -91,16 +127,27 @@ The final Part D data, error, and mapping contracts are defined in `03-domain-an
 Unless explicitly promoted later:
 
 - database/persistence;
+
 - authentication;
+
 - physical flight simulation;
+
 - geography or route optimization;
+
 - packages/customers/delivery management;
+
 - battery/fuel simulation;
-- mandatory cancellation;
+
+- cancellation support;
+
 - retry/backoff;
+
 - `IAsyncEnumerable`;
+
 - drone registration;
+
 - unrelated features;
+
 - additional architectural layers without a concrete responsibility.
 
 ---
@@ -110,15 +157,25 @@ Unless explicitly promoted later:
 The MVP is complete when:
 
 - `R1–R21` are satisfied;
+
 - `R22–R25` delivery requirements are satisfied;
+
 - the application builds and launches;
+
 - the menu works;
+
 - Parts A–C can be demonstrated;
+
 - required implementation mechanisms are present;
+
 - relevant automated tests pass;
+
 - required inspections pass;
+
 - required manual demonstrations pass;
+
 - README and reflection requirements are satisfied;
+
 - the project is in GitHub.
 
 Part D is not required for MVP completion.
@@ -395,7 +452,7 @@ Each HTTP call exposes start and completion/failure logging.
 
 `PD11`
 
-Sequential and concurrent request modes return equivalent functional data and permit observation of the difference in execution overlap/relative duration.
+Sequential and concurrent request modes return equivalent functional data and permit observable comparison of the difference in execution overlap/relative duration. Exact elapsed time is not a correctness requirement.
 
 ### AC-D11 — Variable response time
 
@@ -408,6 +465,9 @@ The local server can produce deliberately varied response times for demonstratio
 # 8. Scope protection
 
 - A–C always take priority over Part D.
+
 - Bonus features never become completion prerequisites.
+
 - New scope requires corresponding requirements, behaviours, and verification.
+
 - Technical curiosity alone is not sufficient reason to expand scope.
