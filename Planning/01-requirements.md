@@ -26,11 +26,7 @@ The project shall provide a runnable C# console application.
 
 ### R2 — Drone model
 
-Each drone shall have:
-
-- `Name : string`
-- `MaxCheckpoints : int`
-- `DelayMs : int`
+Each drone shall have `Name`, `MaxCheckpoints`, and `DelayMs`.
 
 ### R3 — Checkpoint progression
 
@@ -42,13 +38,7 @@ The configured `DelayMs` shall be applied between checkpoint steps.
 
 ### R5 — Progress reporting
 
-The application shall report:
-
-- drone start;
-- each checkpoint reached;
-- drone completion.
-
----
+The application shall report drone start, each checkpoint reached, and drone completion.
 
 ## Part A — Thread Race
 
@@ -67,8 +57,6 @@ The application shall demonstrate the effect of removing `Join`.
 ### R9 — Non-deterministic concurrent output
 
 The application shall demonstrate that concurrent console output can become interleaved or otherwise non-deterministic.
-
----
 
 ## Part B — Task + TaskCompletionSource
 
@@ -96,8 +84,6 @@ The failure shall propagate through the TCS/Task model and reach the orchestrati
 
 The failure demonstration shall include observation of task exception information through `Task.Exception`.
 
----
-
 ## Part C — Async/Await
 
 ### R16 — Async drone flight
@@ -110,7 +96,7 @@ Checkpoint delays shall use `await Task.Delay`.
 
 ### R18 — Multiple async flights
 
-Multiple drone flights shall be able to progress concurrently.
+Multiple drone flights shall be able to make overlapping progress.
 
 ### R19 — Async Task.WhenAll
 
@@ -122,16 +108,9 @@ The orchestration shall use `try/catch` for async flight failures.
 
 ### R21 — Comparison with Part B
 
-The project shall provide a meaningful comparison between Part B and Part C regarding:
+The project shall provide a meaningful comparison between Part B and Part C regarding boilerplate, complexity, readability, and maintainability.
 
-- boilerplate;
-- complexity;
-- readability;
-- maintainability.
-
----
-
-# 3. Delivery requirements
+## Delivery
 
 ### R22 — Menu
 
@@ -143,12 +122,7 @@ The project shall be stored in a GitHub repository.
 
 ### R24 — README
 
-The repository shall contain `README.md` with:
-
-- prerequisites;
-- build/run instructions;
-- instructions for testing each part;
-- instructions for starting a local HTTP service if one is included.
+The repository shall contain a root `README.md` with prerequisites, build/run instructions, testing instructions for each part, and local HTTP startup instructions when a local service is included.
 
 ### R25 — Reflection
 
@@ -156,113 +130,97 @@ The repository shall contain `reflection.md` with the required observations, sho
 
 ---
 
+# 3. Assignment edge cases
+
+These are explicitly called out by the assignment, but their exact response is not fully specified there.
+
+### E1 — Negative MaxCheckpoints
+
+The application shall handle a negative `MaxCheckpoints` value according to the project's finalized validation contract.
+
+### E2 — Negative DelayMs
+
+The application shall handle a negative `DelayMs` value according to the project's finalized validation contract.
+
+### E3 — Missing or unidentified drone name
+
+The application shall handle a missing/unknown drone name according to the relevant public contract. For Part D route lookup, an unknown drone is treated as not found.
+
+### E4 — Temporary control-tower failure
+
+The application shall handle a control-tower HTTP failure or timeout according to the finalized Part D error contract when Part D is in scope.
+
+---
+
 # 4. Conditional Part D requirements
 
-Part D is optional in the assignment.
+Part D is optional in the assignment. This project currently includes the local-service alternative in its final target scope.
 
-The following requirements become active only if Part D is included in the final project scope.
+### PD1 — Local control-tower service
 
-### PD1 — Control-tower service
-
-The selected Part D implementation shall provide control-tower data through HTTP.
-
-The assignment permits either:
-
-- an external demo API; or
-- a self-hosted local `HttpListener` service.
-
-The project currently targets the local-service alternative.
+The project shall provide a local control-tower service using the `HttpListener` option supplied by the assignment.
 
 ### PD2 — Route data
 
-The control tower shall provide route information that can affect the simulation.
+The control tower shall provide route information through:
+
+`GET /route?drone=Navn`
 
 ### PD3 — Weather data
 
-The control tower shall provide weather information that can affect the simulation.
+The control tower shall provide weather information through:
+
+`GET /weather`
 
 ### PD4 — Asynchronous HTTP consumption
 
-The client shall consume the control-tower service asynchronously using `HttpClient` and appropriate asynchronous APIs.
+The client shall use one reusable `HttpClient` and asynchronous HTTP APIs.
 
 ### PD5 — Simulation effect
 
-Retrieved control-tower data shall affect the simulation, such as `DelayMs` or `MaxCheckpoints`.
+Retrieved route/weather data shall affect the final simulation configuration.
 
 ### PD6 — HTTP failure handling
 
-The application shall handle network/HTTP failures with appropriate error handling.
+Non-success HTTP responses and connection-level request failures shall produce the documented control-tower failure behaviour.
 
-### PD7 — HTTP timeout handling
+### PD7 — Timeout handling
 
-The application shall handle request timeouts with appropriate error handling.
+HTTP request timeouts shall produce the documented timeout behaviour.
 
 ### PD8 — Non-blocking HTTP flow
 
-The HTTP implementation shall not introduce synchronous blocking into the asynchronous request flow.
+The client and local server shall avoid synchronous blocking in the asynchronous HTTP path.
 
----
+### PD9 — Restrictions
 
-# 5. Additional Part D capabilities from the assignment
+The project shall provide temporary restriction data through the optional:
 
-These are optional capabilities within the optional Part D.
+`GET /restrictions`
 
-### PD9 — Temporary restrictions
-
-The control tower may provide temporary restriction data that affects the simulation.
+endpoint.
 
 ### PD10 — HTTP lifecycle logging
 
-The application may log request start and completion/failure so overlapping requests can be observed.
+HTTP request start and completion/failure shall be observable in the final Part D implementation.
 
-### PD11 — Sequential versus concurrent HTTP comparison
+### PD11 — Sequential versus concurrent HTTP calls
 
-The project may compare sequential and concurrent control-tower requests.
+The project shall support comparison of sequential and concurrent control-tower requests using equivalent functional results.
 
 ### PD12 — Variable response time
 
-The local-service alternative may introduce variable response time to simulate slow network conditions.
+The local control tower shall be able to vary response time to simulate slow network conditions. Exact elapsed duration is not a correctness requirement.
 
 ### PD13 — Drone registration
 
-A bonus implementation may provide an endpoint for registering a drone before flight.
-
-These capabilities are not required for the mandatory assignment and are not prerequisites for MVP completion.
+Drone registration remains a bonus extension and is not part of the final target scope.
 
 ---
 
-# 6. Bonus functionality
+# 5. Technical requirements
 
-The following are explicitly optional extras from the assignment:
-
-- `CancellationToken` support for cancelling drones;
-- retry/backoff around HTTP calls;
-- `IAsyncEnumerable` for streaming drone progress.
-
-They are not required for the project to be considered complete.
-
----
-
-# 7. Explicit edge cases from the assignment
-
-The assignment specifically calls for consideration of:
-
-- negative `DelayMs`;
-- negative `MaxCheckpoints`;
-- unidentified/missing drone name;
-- weather/API failure;
-- timeout;
-- cancellation as a bonus.
-
-The assignment does not define the exact result for every edge case.
-
-Concrete validation and exception contracts are therefore defined in the later domain/design documents before dependent tests are finalized.
-
----
-
-# 8. Technical requirements
-
-The following implementation mechanisms are explicitly required by the mandatory Parts A–C:
+The mandatory execution mechanisms are:
 
 - `Thread`
 - `Thread.Join`
@@ -273,57 +231,17 @@ The following implementation mechanisms are explicitly required by the mandatory
 - `Task.Delay`
 - `try/catch`
 
-The implementation must not replace these required mechanisms with unrelated alternatives.
-
-For Part D, `HttpClient` and asynchronous HTTP APIs are required only when Part D is included.
+When Part D is implemented, `HttpClient` and asynchronous HTTP APIs are required.
 
 ---
 
-# 9. Best-practice guidance from the assignment
+# 6. Bonus functionality
 
-These are implementation guidance rather than separate functional requirements:
+The following remain optional extras:
 
-- Do not mix synchronous blocking such as `.Result` or `.Wait()` into async flow.
-- Propagate asynchronous operations upward.
-- Use `Task.WhenAll` for independent operations.
-- Log enough information to make overlap visible.
-- Separate orchestration from the actual drone work.
-- Keep the implementation proportional to the assignment.
+- `CancellationToken` support;
+- retry/backoff around HTTP calls;
+- `IAsyncEnumerable` for streamed progress;
+- drone registration.
 
----
-
-# 10. Requirement ownership
-
-The requirement IDs in this document are the authoritative requirement IDs for the project.
-
-Mandatory requirements:
-
-`R1–R25`
-
-Conditional Part D requirements:
-
-`PD1–PD13`
-
-Bonus functionality is deliberately outside the mandatory requirement chain.
-
-Later planning documents must trace requirements to acceptance criteria, behaviours, and verification without changing what the requirement itself means.
-
----
-
-# 11. Status
-
-## Mandatory requirements
-
-`R1–R25` extracted and identified.
-
-## Part D
-
-`PD1–PD13` identified as conditional/optional.
-
-## Bonus
-
-Cancellation, retry/backoff and `IAsyncEnumerable` remain optional.
-
-## Open decisions
-
-Concrete validation, exception, HTTP-response, and simulation-mapping contracts are maintained in the later planning/design documents.
+They are not prerequisites for completion.

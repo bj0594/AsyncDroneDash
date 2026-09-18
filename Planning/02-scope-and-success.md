@@ -45,7 +45,7 @@ Part D must not jeopardize completion of the mandatory MVP.
 
 - Async drone-flight method.
 - `await Task.Delay`.
-- Multiple concurrent async flights.
+- Multiple overlapping async flights.
 - `await Task.WhenAll`.
 - Orchestration-level `try/catch`.
 - Comparison with Part B.
@@ -55,7 +55,7 @@ Part D must not jeopardize completion of the mandatory MVP.
 - GitHub repository.
 - Runnable application.
 - Menu for Parts A–D.
-- `README.md`.
+- Root `README.md`.
 - `reflection.md`.
 
 ---
@@ -68,42 +68,40 @@ Part D is optional in the assignment but is currently selected as a project targ
 
 Everything in the MVP, plus:
 
-- local control-tower HTTP service;
-- asynchronous `HttpClient` consumption;
-- route data;
-- weather data;
-- simulation changes based on retrieved data;
+- local `HttpListener` control tower;
+- reusable `HttpClient` client;
+- asynchronous HTTP requests;
+- `/route?drone=Navn`;
+- `/weather`;
+- `/restrictions`;
+- route/weather/restriction data mapping;
 - HTTP failure handling;
-- timeout handling.
-
-The project may also implement:
-
-- temporary restrictions;
-- HTTP lifecycle logging;
+- timeout handling;
+- `ControlTowerException` with explicit error categories;
+- HTTP request lifecycle logging;
 - sequential versus concurrent HTTP comparison;
-- variable response time.
+- variable local response time.
 
-These remain optional within Part D unless explicitly promoted to the final target implementation.
+The target response contracts and mappings are defined in `03-domain-and-rules.md` and `04-design-and-traceability.md`.
 
 ---
 
 # 4. OUT OF SCOPE
 
-Unless later promoted into scope:
+Unless explicitly promoted later:
 
-- database or persistence;
+- database/persistence;
 - authentication;
 - physical flight simulation;
-- geography or real route optimization;
+- geography or route optimization;
 - packages/customers/delivery management;
 - battery/fuel simulation;
-- mandatory cancellation support;
-- mandatory retry/backoff;
+- mandatory cancellation;
+- retry/backoff;
 - `IAsyncEnumerable`;
+- drone registration;
 - unrelated features;
 - additional architectural layers without a concrete responsibility.
-
-Bonus features must not become prerequisites for completion.
 
 ---
 
@@ -113,14 +111,15 @@ The MVP is complete when:
 
 - `R1–R21` are satisfied;
 - `R22–R25` delivery requirements are satisfied;
-- Parts A–C can be demonstrated from the application menu;
-- required execution mechanisms are present and observable;
 - the application builds and runs;
+- the menu works;
+- Parts A–C can be demonstrated;
+- required implementation mechanisms are present;
 - relevant automated tests pass;
-- required implementation inspections pass;
+- required inspections pass;
 - required manual demonstrations pass;
 - README and reflection requirements are satisfied;
-- the project is stored in GitHub.
+- the project is in GitHub.
 
 Part D is not required for MVP completion.
 
@@ -128,9 +127,9 @@ Part D is not required for MVP completion.
 
 # 6. Final project success
 
-The final project is successful when the MVP Definition of Done is satisfied and the selected Part D scope is also successfully implemented and verified.
+The final project is successful when the MVP Definition of Done is satisfied and all selected Part D requirements `PD1–PD12` are implemented and verified.
 
-If Part D cannot be completed without putting the mandatory submission at risk, the project remains an acceptable MVP.
+If Part D cannot be completed without putting the mandatory submission at risk, the project remains a valid MVP and Part D is omitted from the final submission.
 
 ---
 
@@ -148,21 +147,13 @@ The project builds and launches as a C# console application.
 
 `R2`
 
-A drone is represented by:
-
-- `Name`;
-- `MaxCheckpoints`;
-- `DelayMs`.
+A drone is represented by `Name`, `MaxCheckpoints`, and `DelayMs`.
 
 ### AC-CORE-3 — Checkpoint progression
 
 `R3`
 
-For a valid drone with `MaxCheckpoints = 3`, the flight reports:
-
-`0 → 1 → 2 → 3`
-
-in ascending order.
+For `MaxCheckpoints = 3`, a successful flight reports `0 → 1 → 2 → 3` in ascending order.
 
 ### AC-CORE-4 — Checkpoint delay
 
@@ -174,13 +165,7 @@ The configured `DelayMs` is applied between checkpoint steps.
 
 `R5`
 
-A successful flight reports:
-
-- start;
-- every checkpoint;
-- completion.
-
----
+A successful flight reports start, every checkpoint, and completion.
 
 ## Part A
 
@@ -200,15 +185,13 @@ The normal Part A run does not report overall completion until all required dron
 
 `R8`
 
-The no-`Join` demonstration allows the main thread to continue before all drone work has completed.
+The no-`Join` demonstration allows main-thread continuation before all drone work has completed.
 
 ### AC-A4 — Concurrent output
 
 `R9`
 
 Concurrent drone output can be observed as interleaved or otherwise non-deterministic.
-
----
 
 ## Part B
 
@@ -234,21 +217,19 @@ At least two drone tasks are coordinated with `Task.WhenAll`.
 
 `R13`
 
-A defined drone failure scenario causes the affected operation to fail.
+A defined drone failure scenario causes the affected operation to fault with `InvalidOperationException("Simulated drone failure.")`.
 
 ### AC-B5 — Failure propagation
 
 `R14`
 
-The failure reaches the orchestration layer through the Task/TCS model.
+The failure reaches orchestration through the Task/TCS model.
 
 ### AC-B6 — Task.Exception
 
 `R15`
 
-The failure can be observed through `Task.Exception`, including the relevant underlying exception.
-
----
+The faulted task exposes an `AggregateException` through `Task.Exception` containing the simulated failure.
 
 ## Part C
 
@@ -268,7 +249,7 @@ Checkpoint delays use `await Task.Delay`.
 
 `R18`
 
-At least two async drone flights can progress concurrently.
+At least two async drone flights can make overlapping progress.
 
 ### AC-C4 — Async Task.WhenAll
 
@@ -280,20 +261,13 @@ The orchestration uses `await Task.WhenAll` to coordinate multiple async flights
 
 `R20`
 
-Async flight failure reaches orchestration and is handled with `try/catch`.
+Async failure reaches orchestration and is handled with `try/catch`.
 
-### AC-C6 — Comparison with Part B
+### AC-C6 — Comparison
 
 `R21`
 
-The project provides a meaningful comparison of Part B and Part C regarding:
-
-- boilerplate;
-- complexity;
-- readability;
-- maintainability.
-
----
+The project compares Part B and Part C regarding boilerplate, complexity, readability, and maintainability.
 
 ## Delivery
 
@@ -313,12 +287,7 @@ The project exists in a GitHub repository.
 
 `R24`
 
-README contains:
-
-- prerequisites;
-- build/run instructions;
-- testing instructions for the parts;
-- local HTTP startup instructions if applicable.
+The root README contains prerequisites, build/run instructions, testing instructions, and local HTTP startup instructions when applicable.
 
 ### AC-DLV-4 — Reflection
 
@@ -326,147 +295,105 @@ README contains:
 
 `reflection.md` contains the required observations, short answers, and relevant thoughts.
 
----
+## Assignment edge cases
 
-# 8. Conditional Part D acceptance criteria
+### AC-EDGE-1 — Negative MaxCheckpoints
 
-These become active if Part D remains in final scope.
+`E1`
+
+A negative value is rejected with `ArgumentOutOfRangeException`.
+
+### AC-EDGE-2 — Negative DelayMs
+
+`E2`
+
+A negative value is rejected with `ArgumentOutOfRangeException`.
+
+### AC-EDGE-3 — Missing/blank drone name
+
+`E3`
+
+A null, empty, or whitespace-only drone name is rejected with `ArgumentException`; an unknown Part D route name is reported as not found.
+
+### AC-EDGE-4 — Control-tower failure
+
+`E4`
+
+HTTP failure and timeout produce the documented `ControlTowerException` category when Part D is active.
+
+## Conditional Part D
 
 ### AC-D1 — Route information
 
 `PD2`
 
-The control-tower service returns route information that can affect the simulation.
+`/route?drone=Navn` returns valid route information.
 
 ### AC-D2 — Weather information
 
 `PD3`
 
-The control-tower service returns weather information that can affect the simulation.
+`/weather` returns valid weather information.
 
-### AC-D3 — Asynchronous HTTP consumption
+### AC-D3 — Async HTTP consumption
 
 `PD4`
 
-The client consumes the control-tower service asynchronously using `HttpClient`.
+The client consumes the control tower asynchronously through one reusable `HttpClient`.
 
 ### AC-D4 — Simulation effect
 
 `PD5`
 
-Retrieved data changes the simulation according to the documented mapping.
+Retrieved route, weather, and restriction data produce the documented final simulation values.
 
-### AC-D5 — HTTP failure handling
+### AC-D5 — HTTP failure
 
 `PD6`
 
-HTTP/network failures produce documented error handling.
+Non-success or connection failures produce `ControlTowerException.RequestFailed` or `NotFound` as appropriate.
 
-### AC-D6 — Timeout handling
+### AC-D6 — Timeout
 
 `PD7`
 
-Request timeouts produce documented timeout handling.
+Timeout produces `ControlTowerException.Timeout`.
 
-### AC-D7 — Non-blocking HTTP flow
+### AC-D7 — Non-blocking HTTP
 
 `PD8`
 
-The HTTP flow does not introduce synchronous blocking into the async path.
+The client and local server use asynchronous request flow without synchronous blocking.
 
 ### AC-D8 — Restrictions
 
 `PD9`
 
-If included, temporary restrictions are retrieved and applied according to the final contract.
+Restrictions can reduce, but never increase, the route checkpoint maximum.
 
 ### AC-D9 — HTTP lifecycle logging
 
 `PD10`
 
-If included, request start and completion/failure can be observed.
+Each HTTP call exposes start and completion/failure logging.
 
 ### AC-D10 — Sequential/concurrent comparison
 
 `PD11`
 
-If included, sequential and concurrent HTTP calls can be compared using equivalent functional results.
+Sequential and concurrent request modes return equivalent functional data.
 
 ### AC-D11 — Variable response time
 
 `PD12`
 
-If included, the local service can simulate variable response times.
+The local server can produce deliberately varied response times for demonstration purposes.
 
 ---
 
-# 9. Scope protection
-
-The following rules protect the project from scope creep:
+# 8. Scope protection
 
 - A–C always take priority over Part D.
-- Part D work begins only after the mandatory core is stable enough to protect the submission.
-- Bonus features never become prerequisites for completion.
-- New features require a documented connection to the assignment or a deliberate learning objective.
+- Bonus features never become completion prerequisites.
+- New scope requires corresponding requirements, behaviours, and verification.
 - Technical curiosity alone is not sufficient reason to expand scope.
-- New scope must receive corresponding requirements, behaviours, and verification before implementation.
-
----
-
-# 10. Success evidence
-
-Success is demonstrated through multiple kinds of evidence.
-
-### Automated
-
-- deterministic core behaviours;
-- checkpoint progression;
-- task/async completion and failure;
-- relevant Part D HTTP behaviour.
-
-### Implementation inspection
-
-- required execution mechanisms;
-- correct async APIs;
-- absence of synchronous blocking where prohibited.
-
-### Manual
-
-- Thread/Join demonstration;
-- no-Join comparison;
-- concurrent console output;
-- menu;
-- selected Part D demonstration.
-
-### Documentation
-
-- README;
-- reflection;
-- GitHub repository.
-
----
-
-# 11. Current scope status
-
-## MVP
-
-- [x] Defined.
-- [x] Mandatory A–C requirements included.
-- [x] Delivery requirements included.
-- [x] Definition of Done defined.
-
-## Final target
-
-- [x] Part D selected as project target.
-- [x] Part D remains optional at assignment level.
-- [ ] Final Part D API contract.
-- [ ] Final Part D response/data contract.
-- [ ] Final Part D failure contract.
-
-## Later / bonus
-
-- [ ] Cancellation.
-- [ ] Retry/backoff.
-- [ ] `IAsyncEnumerable`.
-
-These remain outside mandatory completion.

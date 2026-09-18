@@ -16,7 +16,7 @@ The core domain does not model physical movement, geography, fuel, battery, pack
 |---|---|---|
 | `Name` | `string` | Identifies the drone |
 | `MaxCheckpoints` | `int` | Highest checkpoint the drone should reach |
-| `DelayMs` | `int` | Delay between checkpoint steps in milliseconds |
+| `DelayMs` | `int` | Delay between checkpoint steps |
 
 No additional properties are required by the MVP.
 
@@ -41,17 +41,28 @@ The event model provides a deterministic observation boundary for tests and orch
 
 A valid drone flight progresses from checkpoint `0` through `MaxCheckpoints`, inclusive.
 
-Example:
-
 `MaxCheckpoints = 3` → `0 → 1 → 2 → 3`
 
 `DelayMs` applies between consecutive checkpoint steps.
 
-A normal flight therefore follows:
-
-`Started → Checkpoint 0 → Delay → Checkpoint 1 → ... → Checkpoint MaxCheckpoints → Completed`
-
 There is no required delay before checkpoint `0` or after the final checkpoint.
+
+---
+
+## Validation rules
+
+| Situation | Contract |
+|---|---|
+| `Name == null` | `ArgumentException` |
+| `Name == ""` | `ArgumentException` |
+| whitespace-only `Name` | `ArgumentException` |
+| `MaxCheckpoints < 0` | `ArgumentOutOfRangeException` |
+| `MaxCheckpoints == 0` | Valid |
+| `DelayMs < 0` | `ArgumentOutOfRangeException` |
+| `DelayMs == 0` | Valid |
+| `DelayMs > 0` | Valid |
+
+Validation is enforced at the flight boundary.
 
 ---
 
@@ -63,36 +74,19 @@ A valid drone configuration can be used for a normal flight.
 
 ### B2 — Checkpoint progression
 
-A successful flight reports checkpoints from `0` through `MaxCheckpoints`.
+A successful flight reports `0..MaxCheckpoints`.
 
 ### B3 — Checkpoint order
 
-A successful flight reports checkpoints in ascending order and never reports a checkpoint above `MaxCheckpoints`.
+Checkpoints are ascending, with no skipped or duplicated checkpoint and no value above `MaxCheckpoints`.
 
 ### B4 — Checkpoint delay
 
-The configured delay is applied between consecutive checkpoint steps.
+`DelayMs` is applied between consecutive checkpoint steps.
 
-### B5 — Flight lifecycle output
+### B5 — Flight lifecycle
 
-A successful flight reports its start, checkpoint progress, and completion.
-
----
-
-## Validation rules
-
-| Situation | Rule |
-|---|---|
-| `Name == null` | Reject with `ArgumentException` |
-| `Name == ""` | Reject with `ArgumentException` |
-| `Name` is whitespace | Reject with `ArgumentException` |
-| `MaxCheckpoints < 0` | Reject with `ArgumentOutOfRangeException` |
-| `MaxCheckpoints == 0` | Valid |
-| `DelayMs < 0` | Reject with `ArgumentOutOfRangeException` |
-| `DelayMs == 0` | Valid |
-| `DelayMs > 0` | Valid |
-
-Validation is enforced at the flight boundary rather than by adding behaviour-specific logic to `DroneModel`.
+A successful flight reports `Started`, checkpoint events, and `Completed`.
 
 ---
 
@@ -104,17 +98,15 @@ At least two drones perform their flights concurrently on separate `Thread` inst
 
 ### B7 — Joined completion
 
-With `Join`, overall completion is reported only after all required drone threads have finished.
+With `Join`, overall completion is reported only after all required threads finish.
 
 ### B8 — No-Join behaviour
 
-Without `Join`, the main thread can continue before all drone threads have completed.
+Without `Join`, the main thread can continue before all drone threads finish.
 
 ### B9 — Non-deterministic console output
 
-Concurrent drone output may appear interleaved or in different orders between runs.
-
-The exact scheduling/output order is not a domain contract.
+Concurrent console output may be interleaved or appear in different orders.
 
 ---
 
@@ -122,11 +114,11 @@ The exact scheduling/output order is not a domain contract.
 
 ### B10 — Task-based flight completion
 
-Each drone flight has a `Task` representing its completion or failure.
+Each drone flight has a `Task` representing completion or failure.
 
 ### B11 — Individual completion signalling
 
-Each participating drone has its own `TaskCompletionSource`.
+Each participating drone has one `TaskCompletionSource`.
 
 ### B12 — Combined task completion
 
@@ -134,23 +126,19 @@ Multiple drone tasks are coordinated with `Task.WhenAll`.
 
 ### B13 — Deterministic failure
 
-Part B uses a selected drone/checkpoint failure scenario to produce a deterministic fault.
-
-The failure exception is:
+The selected Part B scenario produces:
 
 `InvalidOperationException("Simulated drone failure.")`
 
-The failure is introduced by the Part B scenario rather than by adding a permanent failure property to `DroneModel`.
+The failure is introduced by the scenario rather than by a permanent `DroneModel` property.
 
 ### B14 — Failure propagation
 
-The failed operation propagates its failure through the TCS/Task model to orchestration.
+The faulted TCS/task reaches the orchestration layer.
 
-### B15 — Task exception observation
+### B15 — Task.Exception observation
 
-The faulted task exposes the expected exception information through `Task.Exception`.
-
-`Task.Exception` is expected to be an `AggregateException` containing the underlying simulated failure.
+`Task.Exception` is an `AggregateException` containing the simulated failure.
 
 ---
 
@@ -158,7 +146,7 @@ The faulted task exposes the expected exception information through `Task.Except
 
 ### B16 — Async flight
 
-A drone flight is represented by an asynchronous operation returning `Task`.
+A drone flight is represented by an asynchronous `Task` operation.
 
 ### B17 — Async checkpoint delay
 
@@ -166,7 +154,7 @@ Checkpoint delays use `await Task.Delay`.
 
 ### B18 — Concurrent async flights
 
-Multiple drone flights can make meaningful overlapping progress rather than merely completing eventually.
+Multiple drone flights can make overlapping progress.
 
 ### B19 — Combined async completion
 
@@ -178,38 +166,46 @@ An async flight failure reaches orchestration and is handled with `try/catch`.
 
 ---
 
-## Part D — Optional target
+## Part D — Optional project target
 
-Part D is optional in the assignment but is currently a project target.
+Part D uses the local `HttpListener` alternative supplied by the assignment and `HttpClient` for the client.
 
-The project uses the local `HttpListener` alternative supplied by the assignment and an asynchronous `HttpClient` client.
-
-### Control-tower endpoints
-
-Required local endpoints for the current target:
+### Endpoints
 
 ```text
 GET /route?drone=Navn
 GET /weather
-```
-
-Optional extension:
-
-```text
 GET /restrictions
 ```
 
-The route endpoint reads the requested drone name from the request query/`RawUrl`.
+`/restrictions` is the project's selected extension of the minimum local API described by the assignment.
 
-### Route data
+### Route JSON
 
-Route data provides the base checkpoint count for the requested drone.
+```json
+{
+  "maxCheckpoints": 3
+}
+```
 
-### Weather data
+Rules:
 
-Weather data affects final `DelayMs`.
+- property is required;
+- value is integer;
+- value must be `>= 0`;
+- it is the base route checkpoint count.
 
-Current mapping:
+An unknown route drone returns HTTP `404`.
+
+### Weather JSON
+
+```json
+{
+  "condition": "storm"
+}
+```
+
+Supported values:
 
 | Condition | Delay adjustment |
 |---|---:|
@@ -217,62 +213,72 @@ Current mapping:
 | `wind` | `+250 ms` |
 | `storm` | `+500 ms` |
 
-Unknown weather values are invalid under the final response contract.
+Unknown values are invalid.
 
-### Restrictions
+### Restriction JSON
 
-If included, restriction data provides an optional maximum checkpoint value.
+With restriction:
 
-No restriction:
+```json
+{
+  "maxCheckpoints": 2
+}
+```
+
+Without an active restriction:
+
+```json
+{
+  "maxCheckpoints": null
+}
+```
+
+The value is either null or a non-negative integer.
+
+### Final configuration
+
+Without restriction:
 
 `FinalMaxCheckpoints = RouteMaxCheckpoints`
 
-Restriction present:
+With restriction:
 
 `FinalMaxCheckpoints = min(RouteMaxCheckpoints, RestrictionMaxCheckpoints)`
 
-A restriction cannot increase the route checkpoint count.
+`FinalDelayMs = Drone.DelayMs + Weather.DelayAdjustmentMs`
 
-### Final simulation configuration
+The final values must satisfy the core validation rules.
 
-```text
-FinalMaxCheckpoints = route maximum, optionally capped by restriction
-FinalDelayMs = Drone.DelayMs + Weather.DelayAdjustmentMs
-```
+### ControlTowerException
 
-The resulting configuration must still satisfy the core validation rules.
+The client translates dependency failures into:
+
+- `RequestFailed` — non-success response except not-found, or connection-level failure;
+- `NotFound` — requested route/drone was not found;
+- `Timeout` — request exceeded configured timeout;
+- `InvalidResponse` — malformed or invalid response data.
+
+The original exception is preserved where useful.
 
 ### Variable response time
 
-The local service can deliberately vary response time to simulate slow network conditions.
+The local service can vary response time to simulate slow network conditions.
 
 Exact elapsed duration is not a correctness rule.
 
-### HTTP failures
-
-The client translates HTTP/dependency failures into a project-specific `ControlTowerException` with these categories:
-
-- `RequestFailed`
-- `Timeout`
-- `InvalidResponse`
-
-The exact public exception API is documented in `04-design-and-traceability.md`.
-
 ### HTTP client lifetime
 
-`ControlTowerClient` reuses one `HttpClient` rather than creating one per request.
+`ControlTowerClient` reuses one `HttpClient` for all requests.
 
 ### Local server execution
 
-The local `HttpListener` request loop uses asynchronous request handling rather than blocking `GetContext()` calls.
+The local `HttpListener` request loop uses asynchronous request handling and does not use blocking `GetContext()` as its normal request loop.
 
 ---
 
 ## Optional features
 
-The following remain outside mandatory completion:
-
-- `CancellationToken` support;
+- cancellation;
 - retry/backoff;
 - `IAsyncEnumerable`;
-- drone registration endpoint.
+- drone registration.
