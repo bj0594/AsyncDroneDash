@@ -2,7 +2,6 @@
 
 ## 1. Common flight behaviour
 
-```text
 Start
   ↓
 Validate configuration
@@ -21,7 +20,6 @@ More checkpoints?
       ↓
    Report checkpoint
       └──→ More checkpoints?
-```
 
 Checkpoint progression is inclusive:
 
@@ -37,23 +35,19 @@ For `MaxCheckpoints = 0`:
 
 ### Flow
 
-```text
-Create drones
-→ create one Thread per drone
-→ start all Threads
-→ execute drone flights
-→ Join all Threads
-→ report overall completion
-```
+    Create drones
+    → create one Thread per drone
+    → start all Threads
+    → execute drone flights
+    → Join all Threads
+    → report overall completion
 
 No-Join:
 
-```text
-Create and start Threads
-→ do not Join
-→ main thread continues
-→ drone Threads continue
-```
+    Create and start Threads
+    → do not Join
+    → main thread continues
+    → drone Threads continue
 
 | Behaviour | Traceability |
 |---|---|
@@ -70,22 +64,18 @@ Exact scheduling order is not a contract.
 
 ### Flow
 
-```text
-Create drones
-→ create one TCS per drone
-→ start drone work
-→ selected failure target reaches checkpoint 1
-→ fault target TCS
-→ complete/fault remaining TCS values
-→ Task.WhenAll
-→ observe success/failure
-```
+    Create drones
+    → create one TCS per drone
+    → start drone work
+    → selected failure target reaches checkpoint 1
+    → fault target TCS
+    → complete/fault remaining TCS values
+    → Task.WhenAll
+    → observe success/failure
 
 Failure contract:
 
-```text
-InvalidOperationException("Simulated drone failure.")
-```
+    InvalidOperationException("Simulated drone failure.")
 
 The selected failure target fails immediately after reporting checkpoint `1`.
 
@@ -104,15 +94,15 @@ The selected failure target fails immediately after reporting checkpoint `1`.
 
 ### Flow
 
-```text
-Create drones
-→ start async flights
-→ await Task.Delay between checkpoints
-→ await Task.WhenAll
-→ try/catch
-```
+    Create drones
+    → start async flights
+    → await Task.Delay between checkpoints
+    → await Task.WhenAll
+    → try/catch
 
 `.Wait()` and `.Result` are prohibited in the async execution path.
+
+The Part C failure demonstration uses the same deterministic failure scenario as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`.
 
 | Behaviour | Traceability |
 |---|---|
@@ -194,8 +184,8 @@ Part D is optional in the assignment and active because it is currently selected
 
 | ID | Behaviour | Traceability |
 |---|---|---|
-| `VB-D00` | Local control tower exposes required endpoints | `PD1 → AC-D0` |
-| `VB-D01` | Route data is retrieved | `PD2 → AC-D1` |
+| `VB-D00` | Local control tower exposes required endpoints and can be shut down cleanly | `PD1 → AC-D0` |
+| `VB-D01` | Route data is retrieved deterministically from the requested drone name | `PD2 → AC-D1` |
 | `VB-D02` | Weather data is retrieved | `PD3 → AC-D2` |
 | `VB-D03` | Restrictions are retrieved | `PD9 → AC-D8` |
 | `VB-D04` | Control-tower data affects final simulation configuration | `PD5 → AC-D4` |
@@ -209,35 +199,32 @@ Part D is optional in the assignment and active because it is currently selected
 
 The local API is:
 
-```text
-GET /route?drone=Navn
-GET /weather
-GET /restrictions
-```
+    GET /route?drone=Navn
+    GET /weather
+    GET /restrictions
 
-The `/route` behaviour reads the requested drone name from the request URL/query data, with `RawUrl` available as the assignment-specific learning point.
+The `/route` behaviour reads the requested drone name from the request URL/query data, with `RawUrl` available as the assignment-specific learning point. The selected project uses the deterministic drone-name-to-route mapping defined in `03-domain-and-rules.md`.
 
 ---
 
 ## 11. Behaviour relationships
 
-```text
-Core
-├── B1–B5
-│   └── VB01–VB08
-├── Part A
-│   └── B6–B9 → VB09–VB14
-├── Part B
-│   └── B10–B15 → VB15–VB21
-└── Part C
-    └── B16–B20 → VB22–VB27
+    Core
+    ├── B1–B5
+    │   └── VB01–VB08
+    ├── Part A
+    │   └── B6–B9 → VB09–VB14
+    ├── Part B
+    │   └── B10–B15 → VB15–VB21
+    └── Part C
+        └── B16–B20 → VB22–VB26
+            └── R21/AC-C6 → VB27
 
-Optional Part D
-└── VB-D00–VB-D11
+    Optional Part D
+    └── VB-D00–VB-D11
 
-Edge cases
-└── VB-E04–VB-E05
-```
+    Edge cases
+    └── VB-E04–VB-E05
 
 ---
 
@@ -251,11 +238,9 @@ Traceability:
 
 Scenario:
 
-```text
-Given a valid drone with MaxCheckpoints = 0
-When the basic flight executes
-Then CheckpointReached(0) is observable
-```
+    Given a valid drone with MaxCheckpoints = 0
+    When the basic flight executes
+    Then CheckpointReached(0) is observable
 
 Observation boundary:
 

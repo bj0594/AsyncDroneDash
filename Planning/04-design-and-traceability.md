@@ -49,7 +49,7 @@ Checkpoint : int?
 Exception  : Exception?
 ```
 
-The exact event-type rules are defined in the domain contract.
+The observable event shape and event-type rules are defined in `03-domain-and-rules.md`. This document does not redefine that contract.
 
 ### DroneFlight
 
@@ -89,7 +89,8 @@ Owns:
 
 - async flight startup;
 - `await Task.WhenAll`;
-- orchestration-level `try/catch`.
+- orchestration-level `try/catch`;
+- the same deterministic simulated failure scenario defined for Part B.
 
 ### ControlTowerClient
 
@@ -112,7 +113,8 @@ Owns:
 - endpoint routing;
 - response generation;
 - controlled response delay;
-- asynchronous request handling.
+- asynchronous request handling;
+- clean shutdown and disposal after the Part D demonstration.
 
 ---
 
@@ -222,6 +224,8 @@ Task AsyncFlightRunner.RunAsync(
 ```
 
 The async path remains asynchronous throughout execution.
+
+The failure scenario uses the same deterministic contract as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`.
 
 ### `ControlTowerClient`
 
@@ -353,7 +357,7 @@ GET /weather
 GET /restrictions
 ```
 
-The `/route` handler reads the drone name from the request URL/query data and uses `RawUrl` as the assignment-specific learning point.
+The `/route` handler reads the drone name from the request URL/query data and uses `RawUrl` as the assignment-specific learning point. The deterministic drone-name-to-route mapping is defined in `03-domain-and-rules.md`; this document treats that domain contract as the source of truth.
 
 The local request loop uses asynchronous request handling.
 
@@ -366,6 +370,8 @@ Independent HTTP calls can be compared sequentially and concurrently.
 Lifecycle logging is part of the selected Part D target.
 
 Variable response time is demonstrable; exact elapsed duration is not a correctness oracle.
+
+The local listener is stopped and disposed when the Part D demonstration finishes or the application shuts down.
 
 ---
 
@@ -405,11 +411,11 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 | `I12` | Part C allows independent flights to overlap |
 | `I13` | Part C uses `await Task.WhenAll` |
 | `I14` | Part C uses orchestration `try/catch` |
-| `I15` | Part C contains no `.Wait()`/`.Result` blocking |
+| `I15` | Part C call path contains no synchronous blocking via `.Wait()`, `.Result`, or `.GetAwaiter().GetResult()` |
 | `I16` | Part D reuses one `HttpClient` |
 | `I17` | Part D uses asynchronous HTTP APIs |
 | `I18` | Local `HttpListener` uses asynchronous request handling |
-| `I19` | Part D uses the finalized JSON and error contracts |
+| `I19` | Part D uses the finalized JSON, route-mapping, and error contracts from `03-domain-and-rules.md` |
 
 ---
 
@@ -417,11 +423,11 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 
 | Requirement | Acceptance criterion | Behaviour | Verification |
 |---|---|---|---|
-| `R1` | `AC-CORE-1` | Project runs | `DOC01` |
+| `R1` | `AC-CORE-1` | Project runs | `DOC01`, `M03` |
 | `R2` | `AC-CORE-2` | `B1`, `VB01` | `T01`, `I01` |
 | `R3` | `AC-CORE-3` | `B2/B3`, `VB05/VB06` | `T04`, `T05` |
-| `R4` | `AC-CORE-4` | `B4`, `VB07` | `T07`, `I02` |
-| `R5` | `AC-CORE-5` | `B5`, `VB08/VB13` | `T08`, `T12`, `T13` |
+| `R4` | `AC-CORE-4` | `B4`, `VB07` | `I02` |
+| `R5` | `AC-CORE-5` | `B5`, `VB08/VB13` | `T08`, `T12` |
 | `R6` | `AC-A1` | `B6`, `VB09/VB14` | `T10`, `T14`, `I03` |
 | `R7` | `AC-A2` | `B7`, `VB10` | `T11`, `I04` |
 | `R8` | `AC-A3` | `B8`, `VB11` | `M01`, `I05` |
@@ -433,7 +439,7 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 | `R14` | `AC-B5` | `B14`, `VB19/VB21` | `T19`, `T21` |
 | `R15` | `AC-B6` | `B15`, `VB20` | `T20`, `I09` |
 | `R16` | `AC-C1` | `B16`, `VB22` | `T22`, `I10` |
-| `R17` | `AC-C2` | `B17`, `VB23` | `T23`, `I11` |
+| `R17` | `AC-C2` | `B17`, `VB23` | `I11` |
 | `R18` | `AC-C3` | `B18`, `VB24` | `T24`, `I12` |
 | `R19` | `AC-C4` | `B19`, `VB25` | `T25`, `I13` |
 | `R20` | `AC-C5` | `B20`, `VB26` | `T26`, `I14`, `I15` |

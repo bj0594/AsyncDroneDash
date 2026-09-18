@@ -31,6 +31,19 @@ A flight produces observable events:
 - `Completed`
 - `Faulted`
 
+The observable event shape is:
+
+    Type       : FlightEventType
+    Checkpoint : int?
+    Exception  : Exception?
+
+Event data rules:
+
+- `Started` has no checkpoint and no exception.
+- `CheckpointReached` contains the reached checkpoint number and no exception.
+- `Completed` has no checkpoint and no exception.
+- `Faulted` contains the relevant exception and no checkpoint requirement.
+
 A `CheckpointReached` event contains the checkpoint number.
 
 The event model provides a deterministic observation boundary for tests and orchestration. Core flight logic does not write directly to the console.
@@ -162,7 +175,7 @@ Multiple async flights are coordinated using `await Task.WhenAll`.
 
 ### B20 — Async failure handling
 
-An async flight failure reaches orchestration and is handled with `try/catch`.
+The Part C demonstration uses the same deterministic failure scenario as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`. The failure reaches orchestration and is handled with `try/catch`.
 
 ---
 
@@ -184,25 +197,33 @@ The project chooses `HttpListener` because the assignment explicitly offers it a
 
 ## Endpoints
 
-```text
-GET /route?drone=Navn
-GET /weather
-GET /restrictions
-```
+    GET /route?drone=Navn
+    GET /weather
+    GET /restrictions
 
 `/restrictions` is the project's selected extension of the minimum local API described by the assignment.
 
 The route handler reads the requested drone name from the request URL/query data. The implementation may inspect `RawUrl` as part of this demonstration because the assignment explicitly calls out that learning point.
 
+The selected project uses a small deterministic route fixture based on drone name:
+
+| Drone name | Base `MaxCheckpoints` |
+|---|---:|
+| `Alpha` | `3` |
+| `Beta` | `5` |
+| `Gamma` | `2` |
+
+These values are project-level demo data chosen to make route behaviour deterministic and testable. They are not additional requirements from the assignment.
+
+Names outside the fixture are unknown route drones and return HTTP `404`.
+
 ## Route JSON
 
 Successful response:
 
-```json
-{
-  "maxCheckpoints": 3
-}
-```
+    {
+      "maxCheckpoints": 3
+    }
 
 Rules:
 
@@ -220,11 +241,9 @@ Unknown route drone:
 
 Successful response:
 
-```json
-{
-  "condition": "storm"
-}
-```
+    {
+      "condition": "storm"
+    }
 
 Supported values:
 
@@ -240,19 +259,15 @@ Unknown values are invalid responses.
 
 With active restriction:
 
-```json
-{
-  "maxCheckpoints": 2
-}
-```
+    {
+      "maxCheckpoints": 2
+    }
 
 Without active restriction:
 
-```json
-{
-  "maxCheckpoints": null
-}
-```
+    {
+      "maxCheckpoints": null
+    }
 
 Rules:
 
@@ -287,11 +302,9 @@ The public error categories are:
 
 Public shape:
 
-```text
-ControlTowerException : Exception
+    ControlTowerException : Exception
 
-ControlTowerErrorKind Kind { get; }
-```
+    ControlTowerErrorKind Kind { get; }
 
 The exception message explains the failure. The original exception is preserved as `InnerException` where useful.
 
@@ -306,6 +319,10 @@ For automated tests, delays are controlled rather than random. Randomness is res
 ## HTTP client lifetime
 
 `ControlTowerClient` reuses one `HttpClient` for its lifetime.
+
+## Local service lifecycle
+
+The local control-tower listener is stopped and disposed when the Part D demonstration finishes or when the application shuts down. The server must release its listener/resources so the configured localhost port can be reused by a later demonstration.
 
 ## Optional features
 

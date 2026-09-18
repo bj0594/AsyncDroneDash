@@ -33,8 +33,8 @@ Part D is optional in the assignment and active because it is currently selected
 | `R1` | `DOC01`, `M03` |
 | `R2` | `T01`, `I01` |
 | `R3` | `T04`, `T05` |
-| `R4` | `T07`, `I02` |
-| `R5` | `T08`, `T12`, `T13` |
+| `R4` | `I02` |
+| `R5` | `T08`, `T12` |
 | `R6` | `T10`, `T14`, `I03` |
 | `R7` | `T11`, `I04` |
 | `R8` | `M01`, `I05` |
@@ -46,7 +46,7 @@ Part D is optional in the assignment and active because it is currently selected
 | `R14` | `T19`, `T21` |
 | `R15` | `T20`, `I09` |
 | `R16` | `T22`, `I10` |
-| `R17` | `T23`, `I11` |
+| `R17` | `I11` |
 | `R18` | `T24`, `I12` |
 | `R19` | `T25`, `I13` |
 | `R20` | `T26`, `I14`, `I15` |
@@ -120,9 +120,9 @@ Unit / Theory.
 
 Representative values:
 
-- `0`;
 - `1`;
-- `3`.
+- `3`;
+- `5`.
 
 Oracle:
 
@@ -157,20 +157,6 @@ Cases:
 Oracle:
 
 `ArgumentException`.
-
----
-
-### T07 — DroneFlight_ShouldApplyConfiguredDelayBetweenCheckpoints
-
-`R4 → AC-CORE-4 → VB07`
-
-Component + implementation inspection / Fact.
-
-Oracle:
-
-The required delay mechanism occurs between checkpoint steps.
-
-Exact elapsed time is not a correctness oracle.
 
 ---
 
@@ -232,20 +218,6 @@ Each drone has its own correct lifecycle and checkpoint sequence.
 
 ---
 
-### T13 — ThreadRace_ShouldReportLifecycleForEachDrone
-
-`R5 → AC-CORE-5 → VB08`
-
-Component / Fact.
-
-Oracle:
-
-Every participating drone reports start, checkpoints and completion.
-
-Exact cross-thread order is not asserted.
-
----
-
 ### T14 — ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently
 
 `R6 → AC-A1 → VB14`
@@ -266,11 +238,9 @@ The test must use synchronization rather than elapsed-time thresholds.
 
 Verify:
 
-```text
-Name
-MaxCheckpoints
-DelayMs
-```
+    Name
+    MaxCheckpoints
+    DelayMs
 
 ---
 
@@ -318,9 +288,9 @@ Observe main-thread continuation before all drone threads have completed.
 
 ### M02 — ThreadRace_ShouldDemonstrateInterleavedOutput
 
-`R9 → AC-A4 → VB12`
+`R5/R9 → AC-CORE-5/AC-A4 → VB08/VB12`
 
-Observe interleaving or reordering of concurrent console output.
+Observe that each drone reports start, each checkpoint, and completion, and that messages from concurrent drones can interleave or appear in different orders.
 
 ---
 
@@ -351,15 +321,19 @@ Successful drone operation reaches a completed Task state.
 
 ---
 
-### T16 — TaskFlight_ShouldUseIndependentCompletionPerDrone
+### T16 — TaskFlight_OneDrone_ShouldCompleteIndependentlyOfAnother
 
 `R11 → AC-B2 → VB16`
 
 Component / Fact.
 
+Scenario:
+
+Start two drones with controlled synchronization so one can reach completion while the other remains in progress.
+
 Oracle:
 
-Each participating drone has an independent completion outcome.
+The first drone's individual Task completes while the second drone's Task remains incomplete. This demonstrates independent per-drone completion signalling. It does not assert TCS internals; `I07` separately verifies one TCS per drone.
 
 ---
 
@@ -477,18 +451,6 @@ Oracle:
 
 A valid async flight completes successfully.
 
-### T23 — AsyncFlight_ShouldUseAsyncDelay
-
-`R17 → AC-C2 → VB23`
-
-Component + inspection / Fact.
-
-Oracle:
-
-Checkpoint delay uses `await Task.Delay`.
-
-No elapsed-time oracle.
-
 ### T24 — AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress
 
 `R18 → AC-C3 → VB24`
@@ -545,7 +507,7 @@ Controlled failure reaches the orchestration `try/catch`.
 
 `R20`
 
-Verify `.Wait()` and `.Result` are not used in the async execution path.
+Verify `.Wait()`, `.Result`, and `.GetAwaiter().GetResult()` are not used anywhere in the Part C call path, including the application entry/menu boundary.
 
 ### DOC05 — Reflection_ShouldComparePartBAndPartC
 
@@ -610,19 +572,19 @@ Automated HTTP tests use a controllable local/test HTTP boundary.
 
 `PD1 → AC-D0 → VB-D00`
 
-Integration / Fact.
+Smoke / integration / manual verification.
 
 Oracle:
 
-The local service starts and exposes:
+The actual local `HttpListener` service starts successfully on the target Windows environment and exposes:
 
-```text
-/route?drone=Navn
-/weather
-/restrictions
-```
+    /route?drone=Navn
+    /weather
+    /restrictions
 
-using the finalized contracts.
+using the finalized contracts, and can be stopped/disposed cleanly.
+
+This verification is deliberately separate from the deterministic client-side HTTP tests because the actual listener depends on the target environment, port availability, and Windows HTTP configuration.
 
 ### HTTP01 — ControlTower_ShouldReturnRouteData
 
@@ -630,7 +592,12 @@ using the finalized contracts.
 
 Oracle:
 
-Valid route response maps to `RouteData`.
+Known route fixtures map to the exact documented values:
+
+- `Alpha` → `MaxCheckpoints == 3`
+- `Beta` → `MaxCheckpoints == 5`
+
+The response maps to `RouteData` using the deterministic drone-name mapping defined in `03-domain-and-rules.md`. Unknown drone names are verified separately by `HTTP08`.
 
 ### HTTP02 — ControlTower_ShouldReturnWeatherData
 
@@ -662,7 +629,7 @@ Route, weather, and restriction data produce the documented final `MaxCheckpoint
 
 Oracle:
 
-Non-success/connection failure maps to `ControlTowerErrorKind.RequestFailed`.
+Non-success HTTP responses other than `404`, or connection-level failures, map to `ControlTowerErrorKind.RequestFailed`.
 
 ### HTTP06 — ControlTower_Timeout_ShouldProduceTimeout
 
@@ -800,10 +767,18 @@ Observe varied local response delays.
 
 ### Route
 
-- positive checkpoint count;
-- zero;
+Use the deterministic project fixtures defined in `03-domain-and-rules.md`:
+
+- `Alpha` → `MaxCheckpoints = 3`;
+- `Beta` → `MaxCheckpoints = 5`;
+- `Gamma` → `MaxCheckpoints = 2`;
+- unknown drone name → `404` / `NotFound`.
+
+Also test response validation with:
+
+- zero checkpoint count;
 - negative invalid data;
-- unknown drone.
+- malformed or missing `maxCheckpoints`.
 
 ### Weather
 
@@ -877,16 +852,14 @@ Use:
 
 Examples:
 
-```text
-DroneFlight_ValidConfiguration_ShouldBeAccepted
-DroneFlight_NegativeMaxCheckpoints_ShouldBeRejected
-DroneFlight_Checkpoints_ShouldProgressFromZeroToMax
-ThreadRace_WithJoin_ShouldWaitForAllDrones
-ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently
-TaskFlight_FaultedTask_ShouldExposeExpectedException
-AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress
-ControlTower_UnknownDrone_ShouldProduceNotFound
-```
+    DroneFlight_ValidConfiguration_ShouldBeAccepted
+    DroneFlight_NegativeMaxCheckpoints_ShouldBeRejected
+    DroneFlight_Checkpoints_ShouldProgressFromZeroToMax
+    ThreadRace_WithJoin_ShouldWaitForAllDrones
+    ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently
+    TaskFlight_FaultedTask_ShouldExposeExpectedException
+    AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress
+    ControlTower_UnknownDrone_ShouldProduceNotFound
 
 ---
 
@@ -902,7 +875,7 @@ ControlTower_UnknownDrone_ShouldProduceNotFound
 - [ ] Relevant dependency failures are covered.
 - [ ] Concurrency tests prove overlap/coordination rather than eventual completion only.
 - [ ] Task failure tests verify faulted state and exception information.
-- [ ] Part D automated tests use controllable dependencies.
+- [ ] Part D automated HTTP tests use controllable dependencies; `HTTP00` is verified separately as a smoke/integration check.
 - [ ] Timing is never an exact correctness oracle.
 - [ ] Every automated test has a clear oracle.
 - [ ] Required implementation mechanisms have inspection items.
@@ -944,11 +917,9 @@ Traceability:
 
 Scenario:
 
-```text
-Given a valid drone with MaxCheckpoints = 0
-When the basic flight executes
-Then CheckpointReached(0) is observable
-```
+    Given a valid drone with MaxCheckpoints = 0
+    When the basic flight executes
+    Then CheckpointReached(0) is observable
 
 Observation boundary:
 
