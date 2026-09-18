@@ -2,31 +2,23 @@
 
 ## 1. Visualizations
 
-Only visualizations that clarify a meaningful part of the design are included.
-
 ### 1.1 Common drone-flight flow
 
-The three mandatory parts use the same basic flight concept:
-
 ```text
-Valid drone
-    ↓
-Start flight
-    ↓
-Report start
-    ↓
+Start
+  ↓
 Checkpoint 0
-    ↓
+  ↓
 More checkpoints?
-   ↙          ↘
- Yes           No
-  ↓             ↓
-Delay         Complete
-  ↓
-Next checkpoint
-  ↓
-Report checkpoint
-  └────────────→ More checkpoints?
+ ├─ No → Completed
+ └─ Yes
+      ↓
+   DelayMs
+      ↓
+   Next checkpoint
+      ↓
+   Report checkpoint
+      └──→ More checkpoints?
 ```
 
 The checkpoint range is inclusive:
@@ -39,41 +31,33 @@ The configured delay is applied between checkpoint steps.
 
 ### 1.2 Part A — Join versus no Join
 
-The most important control-flow distinction in Part A is whether the main thread waits for the drone threads.
-
 ```text
-                Start all drone Threads
-                         ↓
-              ┌──────────┼──────────┐
-              ↓          ↓          ↓
-           Drone 1    Drone 2    Drone ...
-              │          │          │
-              └──────────┼──────────┘
-                         ↓
-                       Join
-                         ↓
-              Report overall completion
+Start all drone Threads
+        ↓
+   Drone flights
+        ↓
+     Join all
+        ↓
+Overall completion
 ```
 
-Without `Join`:
+No-Join demonstration:
 
 ```text
-                Start all drone Threads
-                         ↓
-              Main thread continues
-                         ↓
-              Report overall completion
-
-        Drone threads continue independently
+Start all drone Threads
+        ↓
+Main thread continues
+        ↓
+Overall completion may be reported
+        ↓
+Drone Threads continue independently
 ```
 
-The exact order of concurrent console output is not deterministic.
+The exact concurrent output order is not deterministic.
 
 ---
 
 ### 1.3 Part A–C execution-model comparison
-
-The same basic flight scenario is executed and coordinated differently in the three mandatory parts.
 
 ```text
 Part A
@@ -92,9 +76,7 @@ Drone → async flight ─┼→ await Task.WhenAll
 Drone → async flight ─┘
 ```
 
-This comparison is the main reason the three implementations should remain visibly distinct.
-
-No separate diagram is currently needed for the application menu, Part B failure path, or dependency structure. Those are simple enough to understand from the written design and pseudocode.
+The three implementations deliberately remain visibly different.
 
 ---
 
@@ -105,23 +87,20 @@ No separate diagram is currently needed for the application menu, Part B failure
 ```text
 Validate drone configuration
 
-Start flight
 Report start
 
 Set checkpoint to 0
-Report checkpoint
+Report checkpoint 0
 
 While another checkpoint remains:
     Wait DelayMs
-    Move to the next checkpoint
+    Advance to next checkpoint
     Report checkpoint
 
 Report completion
 ```
 
 For `MaxCheckpoints = 0`, checkpoint `0` is reported and the flight can complete without an intermediate delay.
-
-The exact validation mechanism is defined later as part of API and test design.
 
 ---
 
@@ -130,25 +109,24 @@ The exact validation mechanism is defined later as part of API and test design.
 ```text
 Prepare drones
 
-Create one Thread for each drone
+Create one Thread per drone
 Start all Threads
 
 Join every Thread
 
-Report that all drones are finished
+Report overall completion
 ```
 
-The no-`Join` demonstration uses the same setup but intentionally omits the waiting step:
+No-Join variant:
 
 ```text
 Prepare drones
 
-Create one Thread for each drone
-Start all Threads
+Create and start Threads
 
-Report that the main thread continues
+Do not Join
 
-Do not wait for the drone Threads
+Allow the main thread to continue
 ```
 
 ---
@@ -160,23 +138,23 @@ Prepare drones
 
 For each drone:
     Create one TaskCompletionSource
-    Start the drone work
+    Start its drone work
 
-When a drone succeeds:
+When a drone completes:
     Complete its TCS
 
-When the required failure occurs:
+When the selected failure occurs:
     Fault its TCS
 
-Combine the drone Tasks with Task.WhenAll
+Coordinate the resulting Tasks with Task.WhenAll
 
-Observe successful completion or failure
+Observe success or failure
 
 For the failure demonstration:
-    Observe the relevant Task.Exception
+    Observe Task.Exception
 ```
 
-The exact failure trigger remains a project decision.
+The exact failure trigger remains open.
 
 ---
 
@@ -193,223 +171,269 @@ Each flight:
 
     While another checkpoint remains:
         Await Task.Delay(DelayMs)
-        Move to the next checkpoint
+        Advance checkpoint
         Report checkpoint
 
     Report completion
 
 Await Task.WhenAll
 
-If the combined operation fails:
-    Catch the exception
-    Report the failure
+If orchestration fails:
+    Catch and report the exception
 ```
 
-The async flow must not introduce synchronous `.Wait()` or `.Result`.
+The async flow must not use `.Wait()` or `.Result`.
+
+---
+
+## 2.5 Part D — Optional
+
+```text
+Request control-tower data
+
+Obtain route information
+Obtain weather information
+Obtain temporary restrictions
+
+Combine the returned data
+
+Produce the final simulation configuration
+
+Run the drone flight
+```
+
+The exact API/data mapping remains subject to the final Part D design.
 
 ---
 
 # 3. Vertical behaviours
 
-The following vertical behaviours divide the MVP into small development units.
-
-They are ordered from the basic drone behaviour toward the three execution-model demonstrations.
-
 ## 3.1 Core drone behaviour
 
 ### VB01 — Accept valid drone configuration
 
-A valid drone configuration can be used for a normal flight.
+A valid `DroneModel` can be used for a normal flight.
 
 Related domain behaviour: `B1`
 
-### VB02 — Reject negative MaxCheckpoints
+### VB02 — Handle negative MaxCheckpoints
 
-A drone with a negative `MaxCheckpoints` value is rejected before normal flight execution.
+A negative `MaxCheckpoints` value is handled according to the final validation contract.
+
+Related domain rule: configuration validation.
+
+### VB03 — Handle negative DelayMs
+
+A negative `DelayMs` value is handled according to the final validation contract.
+
+Related domain rule: configuration validation.
+
+### VB04 — Handle missing or blank drone name
+
+A missing, empty, or whitespace-only name is handled according to the final validation contract.
+
+Related domain rule: configuration validation.
+
+### VB05 — Report checkpoint 0
+
+A valid flight reports checkpoint `0`.
 
 Related domain behaviour: `B2`
 
-### VB03 — Reject negative DelayMs
+### VB06 — Progress through all checkpoints
 
-A drone with a negative `DelayMs` value is rejected before normal flight execution.
+A successful flight reports every checkpoint from `0` through `MaxCheckpoints` in ascending order.
 
-Related domain behaviour: `B3`
+Related domain behaviours: `B2`, `B3`
 
-### VB04 — Reject missing or blank drone name
+### VB07 — Complete after the final checkpoint
 
-A drone without a usable name is rejected.
-
-Related domain behaviour: `B4`
-
-### VB05 — Report the first checkpoint
-
-When a valid drone starts a flight, checkpoint `0` is observable.
+A successful flight reports completion only after its final checkpoint.
 
 Related domain behaviour: `B5`
 
-### VB06 — Progress through remaining checkpoints
-
-A valid drone progresses through its remaining checkpoints in ascending order until `MaxCheckpoints` is reached.
-
-Related domain behaviours: `B5`, `B6`
-
-### VB07 — Report successful completion
-
-A drone reports completion only after its checkpoint progression has finished.
-
-Related domain behaviour: `B7`
-
 ---
 
-## 3.2 Part A — Thread behaviours
+## 3.2 Part A
 
 ### VB08 — Execute multiple drone flights concurrently
 
-When Part A is run with at least two drones, the drone flights execute using separate `Thread` instances.
+At least two drones execute using separate `Thread` instances.
 
-Related domain behaviour: `B8`
+Related domain behaviour: `B6`
 
-### VB09 — Wait for all drones before overall completion
+### VB09 — Wait for all drones with Join
 
-When the normal Part A execution uses `Join`, the overall completion indication occurs only after the required drone threads have finished.
+The normal Part A run reports overall completion only after all required drone threads have finished.
 
-Related domain behaviour: `B9`
+Related domain behaviour: `B7`
 
 ### VB10 — Demonstrate execution without Join
 
-The no-`Join` variant demonstrates that the main thread can continue before all drone threads have finished.
+The no-Join variant allows the main thread to continue before all drone threads have finished.
 
-Related domain behaviour: `B10`
+Related domain behaviour: `B8`
 
 ### VB11 — Demonstrate non-deterministic concurrent output
 
-Concurrent drone execution can produce interleaved or otherwise non-deterministic console output.
+Concurrent drone output can become interleaved or appear in different orders.
 
-Related domain behaviour: `B11`
+Related domain behaviour: `B9`
 
 ---
 
-## 3.3 Part B — Task/TCS behaviours
+## 3.3 Part B
 
 ### VB12 — Represent drone completion with Task
 
-A Part B drone flight has a `Task` representing its completion or failure.
+A Part B drone flight is represented by a `Task`.
 
-Related domain behaviour: `B12`
+Related domain behaviour: `B10`
 
-### VB13 — Give each drone an individual completion source
+### VB13 — Use one TaskCompletionSource per drone
 
-Each participating Part B drone has its own `TaskCompletionSource`.
+Each participating drone has its own `TaskCompletionSource`.
 
-Related domain behaviour: `B13`
+Related domain behaviour: `B11`
 
-### VB14 — Coordinate multiple drone tasks
+### VB14 — Coordinate tasks with Task.WhenAll
 
 Multiple drone tasks are coordinated with `Task.WhenAll`.
 
-Related domain behaviour: `B14`
+Related domain behaviour: `B12`
 
-### VB15 — Produce a deterministic task failure
+### VB15 — Produce a deterministic failure
 
 The selected Part B failure condition causes the affected drone operation to become faulted.
 
-Related domain behaviour: `B15`
+Related domain behaviour: `B13`
 
 ### VB16 — Propagate task failure
 
-A faulted Part B drone operation propagates its failure to the relevant orchestration boundary.
+A failed drone operation propagates its failure to the orchestration level.
 
-Related domain behaviour: `B16`
+Related domain behaviour: `B14`
 
 ### VB17 — Observe Task.Exception
 
-The Part B demonstration makes the relevant fault information observable through `Task.Exception`.
+The Part B failure can be observed through `Task.Exception`.
 
-Related domain behaviour: `B17`
+Related domain behaviour: `B15`
 
 ---
 
-## 3.4 Part C — Async behaviours
+## 3.4 Part C
 
 ### VB18 — Execute an async drone flight
 
-A valid drone can complete its flight through an asynchronous operation.
+A valid drone can complete through an asynchronous flight operation.
 
-Related domain behaviour: `B18`
+Related domain behaviour: `B16`
 
 ### VB19 — Perform checkpoint delays asynchronously
 
-Part C waits asynchronously between checkpoint steps using `Task.Delay`.
+Checkpoint delays use `await Task.Delay`.
 
-Related domain behaviour: `B19`
+Related domain behaviour: `B17`
 
 ### VB20 — Execute multiple async flights concurrently
 
-Multiple Part C drone flights can progress concurrently.
+Multiple drone flights can progress concurrently.
 
-Related domain behaviour: `B20`
+Related domain behaviour: `B18`
 
 ### VB21 — Coordinate async flights with Task.WhenAll
 
-Part C waits for all participating flights using `await Task.WhenAll`.
+Multiple async flights are coordinated with `await Task.WhenAll`.
 
-Related domain behaviour: `B21`
+Related domain behaviour: `B19`
 
 ### VB22 — Handle async flight failure
 
-A failure in a Part C flight reaches the orchestration layer and is handled with `try/catch`.
+A failed async flight reaches orchestration and is handled with `try/catch`.
 
-Related domain behaviour: `B22`
+Related domain behaviour: `B20`
 
 ---
 
-# 4. Development relationships
+## 3.5 Part D — Optional target
 
-The core drone behaviours provide the foundation for the execution-model work.
+These behaviours are conditional on Part D entering the implementation scope.
+
+### VB-D01 — Retrieve route data
+
+The application can retrieve route information from the control-tower API.
+
+### VB-D02 — Retrieve weather data
+
+The application can retrieve weather information.
+
+### VB-D03 — Retrieve temporary restrictions
+
+The application can retrieve temporary restriction information.
+
+### VB-D04 — Apply retrieved data
+
+Retrieved control-tower data can affect `DelayMs` and/or `MaxCheckpoints` according to the final documented mapping.
+
+### VB-D05 — Handle HTTP failure
+
+A control-tower failure produces the documented failure behaviour.
+
+### VB-D06 — Handle HTTP timeout
+
+A control-tower timeout produces the documented timeout behaviour.
+
+### VB-D07 — Log HTTP activity
+
+HTTP request start/completion or failure is observable if logging is implemented.
+
+### VB-D08 — Compare sequential and concurrent HTTP calls
+
+Sequential and concurrent calls can be compared using equivalent functional results.
+
+---
+
+# 4. Behaviour relationships
 
 ```text
 VB01–VB07
-     ↓
+      ↓
 Core drone flight
-   ↙   ↓   ↘
+   ↙    ↓    ↘
 Part A Part B Part C
+   \
+    └── Part D can provide optional external input
 ```
 
-The three execution models deliberately reuse the same basic domain problem.
+The three mandatory execution models reuse the same basic drone-flight problem.
 
-This keeps the comparison focused on how the work is executed and coordinated rather than introducing unrelated domain differences.
-
-The Part A–C branches do not have to be completed strictly one after another if a focused spike or test provides useful information earlier.
+Part D extends the input/control side without replacing the core flight model.
 
 ---
 
 # 5. First development candidate
 
-The first behaviour should avoid concurrency, thread scheduling, TCS semantics, and real timing where possible.
+### VB05 — Report checkpoint 0
 
-Current candidate:
+Given a valid drone, when the basic flight starts, checkpoint `0` is observable.
 
-### VB05 — Report the first checkpoint
+Traceability:
 
-Given a valid drone, when its flight starts, checkpoint `0` is observable.
+`R3 → AC-CORE-2 → VB05`
 
-This provides a small entry point into the flight behaviour before the execution-model complexity is introduced.
-
-The exact test for this behaviour will be designed in `testplan.md`.
+The detailed test specification is maintained in `AsyncDroneDash.Tests/TestPlan.md`.
 
 ---
 
 # 6. Open design points
 
-The following remain unresolved:
-
 - exact validation contract for negative `MaxCheckpoints`;
 - exact validation contract for negative `DelayMs`;
-- exact handling of missing/unknown drones;
+- exact handling of missing/unknown drone names;
 - exact Part B failure trigger;
-- final public API used by the first behaviour.
-
-These decisions should be resolved when the corresponding test and API design requires them.
+- final Part D API/data contract;
+- final Part D data-to-simulation mapping.
 
 ---
 
@@ -417,23 +441,27 @@ These decisions should be resolved when the corresponding test and API design re
 
 ### Visualizations
 
-- [x] Common drone-flight flow.
-- [x] Part A `Join` / no-`Join` comparison.
+- [x] Common flight flow.
+- [x] Part A Join/no-Join flow.
 - [x] Part A–C execution-model comparison.
 
 ### Pseudocode
 
-- [x] Common drone flight.
+- [x] Common flight.
 - [x] Part A.
-- [x] Part A no-`Join` variant.
 - [x] Part B.
 - [x] Part C.
+- [x] Part D outline.
 
-### Vertical behaviours
+### Behaviours
 
-- [x] Core behaviours divided into development units.
-- [x] Part A behaviours divided.
-- [x] Part B behaviours divided.
-- [x] Part C behaviours divided.
-- [x] Development relationships identified.
-- [x] First behaviour candidate identified.
+- [x] Core behaviours.
+- [x] Part A behaviours.
+- [x] Part B behaviours.
+- [x] Part C behaviours.
+- [x] Optional Part D behaviours.
+- [x] First behaviour identified.
+
+### Remaining
+
+- [ ] Resolve open contracts when their dependent test/design requires them.
