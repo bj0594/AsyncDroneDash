@@ -1,3 +1,4 @@
+using AsyncDroneDash.Project;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -227,8 +228,7 @@ public class ControlTowerTests
     [InlineData("")]
     [InlineData("""{"condition":}""")]
     [InlineData("""{"wrongProperty":"clear"}""")]
-    [InlineData("""{"maxCheckpoints":-1}""")]
-    public async Task ControlTower_InvalidResponse_ShouldProduceInvalidResponse(
+    public async Task ControlTower_InvalidWeatherResponse_ShouldProduceInvalidResponse(
         string responseBody)
     {
         // Arrange
@@ -245,6 +245,60 @@ public class ControlTowerTests
         // Act
         var exception = await Assert.ThrowsAsync<ControlTowerException>(
             () => client.GetWeatherAsync());
+
+        // Assert
+        Assert.Equal(
+            ControlTowerErrorKind.InvalidResponse,
+            exception.Kind);
+    }
+
+    [Theory]
+    [InlineData("""{}""")]
+    [InlineData("""{"maxCheckpoints":-1}""")]
+    public async Task ControlTower_InvalidRouteResponse_ShouldProduceInvalidResponse(
+        string responseBody)
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(_ =>
+            JsonResponse(responseBody));
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<ControlTowerException>(
+            () => client.GetRouteAsync("Alpha"));
+
+        // Assert
+        Assert.Equal(
+            ControlTowerErrorKind.InvalidResponse,
+            exception.Kind);
+    }
+
+    [Theory]
+    [InlineData("""{}""")]
+    [InlineData("""{"maxCheckpoints":-1}""")]
+    public async Task ControlTower_InvalidRestrictionResponse_ShouldProduceInvalidResponse(
+        string responseBody)
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(_ =>
+            JsonResponse(responseBody));
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<ControlTowerException>(
+            () => client.GetRestrictionsAsync());
 
         // Assert
         Assert.Equal(
@@ -286,7 +340,7 @@ public class ControlTowerTests
     public async Task ControlTower_SequentialAndConcurrentResults_ShouldMatch()
     {
         // Arrange
-        var handler = new StubHttpMessageHandler(request =>
+        var sequentialHandler = new StubHttpMessageHandler(request =>
         {
             return request.RequestUri!.AbsolutePath switch
             {
@@ -304,13 +358,13 @@ public class ControlTowerTests
             };
         });
 
-        using var httpClient = new HttpClient(handler)
+        using var sequentialHttpClient = new HttpClient(sequentialHandler)
         {
             BaseAddress = new Uri("http://localhost:8080/")
         };
 
-        var client = new ControlTowerClient(httpClient);
-        var orchestrator = new ControlTowerOrchestrator(client);
+        var sequentialClient = new ControlTowerClient(sequentialHttpClient);
+        var sequentialOrchestrator = new ControlTowerOrchestrator(sequentialClient);
 
         var drone = new DroneModel
         {
@@ -321,12 +375,72 @@ public class ControlTowerTests
 
         // Act
         var sequential =
-            await orchestrator.LoadSequentialAsync(drone);
+            await sequentialOrchestrator.LoadSequentialAsync(drone);
 
-        var concurrent =
-            await orchestrator.LoadConcurrentAsync(drone);
+        var routeStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var weatherStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var restrictionsStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseRequests = new ManualResetEventSlim(false);
+
+        var concurrentHandler = new StubHttpMessageHandler(
+            async (request, _) =>
+            {
+                switch (request.RequestUri!.AbsolutePath)
+                {
+                    case "/route":
+                        routeStarted.TrySetResult(true);
+                        break;
+                    case "/weather":
+                        weatherStarted.TrySetResult(true);
+                        break;
+                    case "/restrictions":
+                        restrictionsStarted.TrySetResult(true);
+                        break;
+                }
+
+                releaseRequests.Wait();
+
+                return request.RequestUri.AbsolutePath switch
+                {
+                    "/route" =>
+                        JsonResponse("""{"maxCheckpoints":3}"""),
+
+                    "/weather" =>
+                        JsonResponse("""{"condition":"storm"}"""),
+
+                    "/restrictions" =>
+                        JsonResponse("""{"maxCheckpoints":2}"""),
+
+                    _ =>
+                        new HttpResponseMessage(HttpStatusCode.NotFound)
+                };
+            });
+
+        using var concurrentHttpClient = new HttpClient(concurrentHandler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var concurrentClient = new ControlTowerClient(concurrentHttpClient);
+        var concurrentOrchestrator = new ControlTowerOrchestrator(concurrentClient);
+
+        var concurrentTask = concurrentOrchestrator.LoadConcurrentAsync(drone);
+
+        await Task.WhenAll(
+            routeStarted.Task,
+            weatherStarted.Task,
+            restrictionsStarted.Task);
 
         // Assert
+        Assert.False(concurrentTask.IsCompleted);
+
+        releaseRequests.Set();
+
+        var concurrent = await concurrentTask;
+
         Assert.Equal(
             sequential.Name,
             concurrent.Name);

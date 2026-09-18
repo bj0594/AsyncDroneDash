@@ -17,7 +17,7 @@ public class DroneModelAndFlightTests
         };
 
         // Act
-        var exception = Record.Exception(() => drone.Validate());
+        var exception = Record.Exception(() => new DroneFlight().Run(drone, _ => { }));
 
         // Assert
         Assert.Null(exception);
@@ -37,7 +37,7 @@ public class DroneModelAndFlightTests
         };
 
         // Act
-        var act = () => drone.Validate();
+        var act = () => new DroneFlight().Run(drone, _ => { });
 
         // Assert
         Assert.Throws<ArgumentOutOfRangeException>(act);
@@ -57,7 +57,7 @@ public class DroneModelAndFlightTests
         };
 
         // Act
-        var act = () => drone.Validate();
+        var act = () => new DroneFlight().Run(drone, _ => { });
 
         // Assert
         Assert.Throws<ArgumentOutOfRangeException>(act);
@@ -81,7 +81,7 @@ public class DroneModelAndFlightTests
         Action<FlightEvent> onEvent = events.Add;
 
         // Act
-        drone.Fly(onEvent);
+        new DroneFlight().Run(drone, onEvent);
 
         // Assert
         var checkpoints = events
@@ -109,7 +109,7 @@ public class DroneModelAndFlightTests
         Action<FlightEvent> onEvent = events.Add;
 
         // Act
-        drone.Fly(onEvent);
+        new DroneFlight().Run(drone, onEvent);
 
         // Assert
         Assert.Collection(
@@ -139,7 +139,7 @@ public class DroneModelAndFlightTests
         };
 
         // Act
-        var act = () => drone.Validate();
+        var act = () => new DroneFlight().Run(drone, _ => { });
 
         // Assert
         Assert.Throws<ArgumentException>(act);
@@ -160,7 +160,7 @@ public class DroneModelAndFlightTests
         Action<FlightEvent> onEvent = events.Add;
 
         // Act
-        drone.Fly(onEvent);
+        new DroneFlight().Run(drone, onEvent);
 
         // Assert
         Assert.NotEmpty(events);
@@ -183,7 +183,7 @@ public class DroneModelAndFlightTests
         Action<FlightEvent> onEvent = events.Add;
 
         // Act
-        drone.Fly(onEvent);
+        new DroneFlight().Run(drone, onEvent);
 
         // Assert
         Assert.Equal(6, events.Count);

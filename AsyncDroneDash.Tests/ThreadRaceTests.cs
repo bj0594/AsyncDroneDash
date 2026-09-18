@@ -6,7 +6,7 @@ namespace AsyncDroneDash.Tests;
 public class ThreadRaceTests
 {
     [Fact]
-    public void ThreadRace_MultipleDrones_ShouldUseSeparateThreadsAndComplete()
+    public void ThreadRace_MultipleDrones_ShouldComplete()
     {
         // Arrange
         var drones = new[]
@@ -26,11 +26,16 @@ public class ThreadRaceTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        var race = new ThreadRace(drones, report);
-        race.Run();
+        ThreadRace.RunWithJoin(drones, report);
 
         // Assert
         Assert.All(
@@ -72,22 +77,57 @@ public class ThreadRaceTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        using var runningGate = new ManualResetEventSlim(false);
+        var startedDrones = 0;
+        var allStarted = new ManualResetEventSlim(false);
+
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+
+            if (flightEvent.Type == FlightEventType.Started)
+            {
+                if (Interlocked.Increment(ref startedDrones) == drones.Length)
+                {
+                    allStarted.Set();
+                }
+
+                runningGate.Wait();
+            }
+        };
 
         // Act
-        var race = new ThreadRace(drones, report);
-        race.Run();
+        var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
 
         // Assert
+        Assert.True(
+            allStarted.Wait(TimeSpan.FromSeconds(1)),
+            "Expected all participating drone threads to reach the running phase.");
+
+        Assert.False(
+            raceTask.IsCompleted,
+            "RunWithJoin must not return while participating threads are still running.");
+
+        runningGate.Set();
+        raceTask.Wait();
+
+        List<FlightEvent> capturedEvents;
+        lock (events)
+        {
+            capturedEvents = events.ToList();
+        }
+
         Assert.All(
             drones,
             drone =>
             {
-                var droneEvents = events
+                var droneEvents = capturedEvents
                     .Where(e => e.DroneName == drone.Name)
                     .ToList();
 
-                Assert.NotEmpty(droneEvents);
                 Assert.Equal(
                     FlightEventType.Completed,
                     droneEvents.Last().Type);
@@ -115,11 +155,16 @@ public class ThreadRaceTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        var race = new ThreadRace(drones, report);
-        race.Run();
+        ThreadRace.RunWithJoin(drones, report);
 
         // Assert
         foreach (var drone in drones)
@@ -167,32 +212,42 @@ public class ThreadRaceTests
             }
         };
 
+        var events = new List<FlightEvent>();
         using var runningGate = new ManualResetEventSlim(false);
+        var startedDrones = 0;
+        var bothStarted = new ManualResetEventSlim(false);
 
-        var runningDrones = 0;
-
-        var race = new ThreadRace(
-            drones,
-            report: _ => { },
-            onDroneRunning: () =>
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
             {
-                if (Interlocked.Increment(ref runningDrones) >= 2)
+                events.Add(flightEvent);
+            }
+
+            if (flightEvent.Type == FlightEventType.Started)
+            {
+                if (Interlocked.Increment(ref startedDrones) == drones.Length)
                 {
-                    runningGate.Set();
+                    bothStarted.Set();
                 }
 
                 runningGate.Wait();
-            });
+            }
+        };
 
         // Act
-        var raceTask = Task.Run(() => race.Run());
+        var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
 
         // Assert
         Assert.True(
-            runningGate.Wait(TimeSpan.FromSeconds(1)),
-            "Expected at least two drone threads to enter the running phase.");
+            bothStarted.Wait(TimeSpan.FromSeconds(1)),
+            "Expected all participating drones to enter the running phase before progress continued.");
 
+        Assert.False(raceTask.IsCompleted);
+
+        runningGate.Set();
         raceTask.Wait();
-        Assert.Equal(2, Volatile.Read(ref runningDrones));
+
+        Assert.Equal(drones.Length, Volatile.Read(ref startedDrones));
     }
 }

@@ -46,6 +46,11 @@ Async Drone Dash/
 │   └── AsyncDroneDash.Project.csproj
 ├── AsyncDroneDash.Tests/
 │   ├── TestPlan.md
+│   ├── DroneModelAndFlightTests.cs
+│   ├── ThreadRaceTests.cs
+│   ├── TaskFlightTests.cs
+│   ├── AsyncFlightTests.cs
+│   ├── ControlTowerTests.cs
 │   └── AsyncDroneDash.Tests.csproj
 ├── AsyncDroneDash.slnx
 ├── global.json
@@ -77,7 +82,7 @@ The application provides a menu for Parts A–D.
 dotnet test
 ```
 
-The test project contains the planned automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The assignment-specific test suite is implemented iteratively after the planning contracts and runtime prerequisites are verified.
+The test project contains the planned automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The tests are implemented against the locked planning contracts before production implementation, then drive the implementation through Red → Green → Refactor.
 
 ## Part A — Thread Race
 

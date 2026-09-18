@@ -1,3 +1,4 @@
+using AsyncDroneDash.Project;
 using Xunit;
 
 namespace AsyncDroneDash.Tests;
@@ -16,7 +17,13 @@ public class AsyncFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
         await AsyncFlightRunner.RunAsync(
@@ -174,7 +181,13 @@ public class AsyncFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
         var task = AsyncFlightRunner.RunAsync(
@@ -217,7 +230,13 @@ public class AsyncFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
         var act = () => AsyncFlightRunner.RunAsync(

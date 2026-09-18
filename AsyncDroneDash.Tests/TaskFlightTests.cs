@@ -17,19 +17,34 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        Task task = TaskFlight.RunAsync(drone, report);
+        Task task = TaskFlightRunner.RunAsync(
+            new[] { drone },
+            failureDroneName: null,
+            report);
 
         // Assert
         await task;
 
         Assert.True(task.IsCompletedSuccessfully);
 
+        FlightEvent lastEvent;
+        lock (events)
+        {
+            lastEvent = events.Last();
+        }
+
         Assert.Equal(
             FlightEventType.Completed,
-            events.Last().Type);
+            lastEvent.Type);
     }
 
     [Fact]
@@ -53,18 +68,24 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
-
-        var tasks = drones
-            .Select(drone => TaskFlight.RunAsync(drone, report))
-            .ToArray();
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        await Task.WhenAll(tasks);
+        Task combinedTask = TaskFlightRunner.RunAsync(
+            drones,
+            failureDroneName: null,
+            report);
+
+        await combinedTask;
 
         // Assert
-        Assert.All(tasks, task =>
-            Assert.True(task.IsCompletedSuccessfully));
+        Assert.True(combinedTask.IsCompletedSuccessfully);
 
         Assert.All(drones, drone =>
         {
@@ -90,13 +111,19 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        Task task = TaskFlight.RunAsync(
-            drone,
-            report,
-            simulateFailure: true);
+        Task task = TaskFlightRunner.RunAsync(
+            new[] { drone },
+            failureDroneName: drone.Name,
+            report);
 
         // Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -106,9 +133,13 @@ public class TaskFlightTests
             "Simulated drone failure.",
             exception.Message);
 
-        var droneEvents = events
-            .Where(e => e.DroneName == drone.Name)
-            .ToList();
+        List<FlightEvent> droneEvents;
+        lock (events)
+        {
+            droneEvents = events
+                .Where(e => e.DroneName == drone.Name)
+                .ToList();
+        }
 
         var checkpointOneIndex = droneEvents.FindIndex(
             e =>
@@ -153,16 +184,22 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             async () =>
             {
-                await TaskFlightOrchestrator.RunAsync(
+                await TaskFlightRunner.RunAsync(
                     drones,
-                    report,
-                    failureDroneName: "Alpha");
+                    failureDroneName: "Alpha",
+                    report);
             });
 
         // Assert
@@ -183,13 +220,19 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        Task task = TaskFlight.RunAsync(
-            drone,
-            report,
-            simulateFailure: true);
+        Task task = TaskFlightRunner.RunAsync(
+            new[] { drone },
+            failureDroneName: drone.Name,
+            report);
 
         try
         {
@@ -232,25 +275,36 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+        };
 
         // Act
-        Task combinedTask = TaskFlightOrchestrator.RunAsync(
+        Task combinedTask = TaskFlightRunner.RunAsync(
             drones,
-            report,
-            failureDroneName: "Alpha");
+            failureDroneName: "Alpha",
+            report);
 
         // Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await combinedTask);
 
-        var alphaEvents = events
-            .Where(e => e.DroneName == "Alpha")
-            .ToList();
+        List<FlightEvent> alphaEvents;
+        List<FlightEvent> betaEvents;
+        lock (events)
+        {
+            alphaEvents = events
+                .Where(e => e.DroneName == "Alpha")
+                .ToList();
 
-        var betaEvents = events
-            .Where(e => e.DroneName == "Beta")
-            .ToList();
+            betaEvents = events
+                .Where(e => e.DroneName == "Beta")
+                .ToList();
+        }
 
         Assert.Contains(
             alphaEvents,

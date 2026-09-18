@@ -80,7 +80,7 @@ Unit / Fact.
 
 Oracle:
 
-A valid configuration is accepted without validation failure, the supplied drone identity/configuration is preserved, and the expected successful flight lifecycle can be observed.
+A valid configuration is accepted without validation failure.
 
 ---
 
@@ -196,7 +196,7 @@ Each event is associated with the drone that produced it through `FlightEvent.Dr
 
 ## 6. Part A
 
-### T10 — ThreadRace_MultipleDrones_ShouldUseSeparateThreadsAndComplete
+### T10 — ThreadRace_MultipleDrones_ShouldComplete
 
 `R6 → AC-A1 → VB09`
 
@@ -617,14 +617,15 @@ This verification is deliberately separate from the deterministic client-side HT
 
 `PD2 → AC-D1 → VB-D01`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
 Known route fixtures map to the exact documented values:
 
 - `Alpha` → `MaxCheckpoints == 3`;
-- `Beta` → `MaxCheckpoints == 5`.
+- `Beta` → `MaxCheckpoints == 5`;
+- `Gamma` → `MaxCheckpoints == 2`.
 
 The response maps to `RouteData` using the deterministic drone-name mapping defined in `03-domain-and-rules.md`. Unknown drone names are verified separately by `HTTP08`.
 
@@ -632,7 +633,7 @@ The response maps to `RouteData` using the deterministic drone-name mapping defi
 
 `PD3 → AC-D2 → VB-D02`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -642,7 +643,7 @@ Valid weather response maps to `WeatherData`.
 
 `PD9 → AC-D8 → VB-D03`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -652,7 +653,7 @@ Restriction response maps correctly, including the no-restriction case.
 
 `PD5 → AC-D4 → VB-D04`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -668,7 +669,7 @@ The test asserts the returned final configuration directly and does not duplicat
 
 `PD6/E5 → AC-D5/AC-EDGE-5 → VB-D05/VB-E05`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -678,7 +679,7 @@ Non-success HTTP responses other than `404`, or connection-level failures, map t
 
 `PD7/E5 → AC-D6/AC-EDGE-5 → VB-D06/VB-E05`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -690,7 +691,9 @@ The automated test uses a controlled test HTTP handler/delay rather than waiting
 
 `PD6/E5 → AC-D5/AC-EDGE-5 → VB-D05/VB-E05`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
+
+The automated coverage is split by response contract: weather cases cover malformed/missing/unsupported weather data, while route/restriction cases cover missing or negative `maxCheckpoints`.
 
 Oracle:
 
@@ -700,7 +703,7 @@ Malformed JSON, missing required data, or invalid response values map to `Invali
 
 `E4 → AC-EDGE-4 → VB-E04`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -710,7 +713,7 @@ An unknown route name results in `NotFound`.
 
 `PD11 → AC-D10 → VB-D10`
 
-Integration / Fact.
+HTTP boundary/client / Fact.
 
 Oracle:
 
@@ -941,7 +944,7 @@ Examples:
 
 ## 17. Definition of Ready
 
-Test files may be created only when:
+Test files may be created when:
 
 1. all mandatory contracts in `01–05` are closed;
 2. every mandatory requirement has a verification path;
@@ -954,14 +957,15 @@ Test files may be created only when:
 9. the `FlightEvent` contract identifies the originating drone;
 10. the `ControlTowerOrchestrator` returns the final simulation configuration;
 11. the Part C failure-handling boundary is explicitly defined;
-12. the HTTP client timeout is explicitly configured;
-13. `dotnet build` succeeds;
-14. `dotnet test` succeeds before custom tests are added.
+12. the HTTP client timeout is explicitly configured.
 
-The TestPlan is the verification map. The actual xUnit code is still developed iteratively through Red → Green → Refactor.
+The readiness check establishes that planning and test design are internally consistent. It does not require the unfinished production implementation to make the test suite pass.
 
----
+After the test files are aligned with the locked contract, the implementation follows the intended TDD sequence:
 
+    Red → Green → Refactor → Final verification
+
+The TestPlan is the verification map. The actual xUnit code is developed iteratively against the locked design contract.
 ## 18. First TDD target
 
 `VB05 — Report checkpoint 0`
@@ -986,13 +990,11 @@ Observation boundary:
 
 ## 19. Status
 
-Planning/test design is complete and ready for the final Definition of Ready check.
+Planning/test design is being finalized against the locked public API. Production implementation has intentionally not started.
 
-The next implementation-stage actions are:
+The next TDD-stage actions are:
 
-- run `dotnet build`;
-- run `dotnet test`;
-- perform the local `HttpListener` smoke test;
-- resolve any runtime issue discovered by that smoke test.
-
-No production implementation or full test suite should be written before those checks pass.
+- align each existing test file with the locked design contract;
+- complete the Definition of Ready consistency check;
+- begin production implementation only after the test contracts are stable;
+- run Red → Green → Refactor → Final verification.
