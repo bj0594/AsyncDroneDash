@@ -2,9 +2,7 @@
 
 ## 1. Design direction
 
-The solution should remain small and make the required differences between Parts A–C visible.
-
-The common scenario is drone flight; the execution and coordination mechanisms differ:
+The solution should remain small and make the differences between Parts A–C visible.
 
 | Part | Execution | Coordination |
 |---|---|---|
@@ -12,338 +10,437 @@ The common scenario is drone flight; the execution and coordination mechanisms d
 | B | `Task` + `TaskCompletionSource` | `Task.WhenAll` |
 | C | `async`/`await` | `await Task.WhenAll` |
 
-The design should not hide these differences behind abstractions that make the assignment's comparison harder to understand.
+The design should not hide these differences behind abstractions that make the assignment harder to demonstrate.
 
-The architecture should be allowed to evolve when the first behaviours are implemented and tested. No class structure is considered final until it has a concrete responsibility.
+Additional layers or abstractions require a concrete responsibility.
 
 ---
 
-## 2. Responsibility map
+## 2. Responsibilities
 
 ### Console / Menu
 
-Handles menu display, user selection, starting the chosen demonstration, and top-level presentation of results/errors.
+- display menu;
+- accept selection;
+- start the selected demonstration;
+- present results/errors;
+- return to menu or exit.
 
-It does not contain the underlying drone-flight or concurrency logic.
+Does not contain drone-flight or concurrency logic.
 
 ### DroneModel
 
-Represents the required configuration of one drone:
+Represents:
 
 - `Name`
 - `MaxCheckpoints`
 - `DelayMs`
 
-### Drone flight
+### FlightEvent
 
-Performs one drone's checkpoint progression, applies the configured delay, reports progress, and reaches a successful or failed outcome.
+Represents an observable flight event.
+
+Initial event types:
+
+- `Started`
+- `CheckpointReached`
+- `Completed`
+- `Faulted`
+
+Checkpoint events contain the checkpoint number.
+
+### DroneFlight
+
+Owns one drone's flight behaviour:
+
+- start;
+- checkpoint progression;
+- configured delay;
+- progress reporting;
+- completion;
+- failure.
+
+Does not own console output or multi-drone orchestration.
 
 ### Part A orchestration
 
-Creates and starts the required threads, performs the normal `Join`-based run, and supports the separate no-`Join` demonstration.
+Owns:
+
+- one `Thread` per drone;
+- starting threads;
+- normal `Join` behaviour;
+- no-`Join` demonstration;
+- overall completion.
 
 ### Part B orchestration
 
-Creates the per-drone TCS/task operations, coordinates them with `Task.WhenAll`, and exposes failure propagation and task exception behaviour.
+Owns:
+
+- one `TaskCompletionSource` per drone;
+- starting drone work;
+- successful/faulted completion;
+- `Task.WhenAll`;
+- failure propagation;
+- `Task.Exception` demonstration.
 
 ### Part C orchestration
 
-Starts async drone flights, coordinates them with `await Task.WhenAll`, and handles orchestration errors with `try/catch`.
+Owns:
+
+- starting multiple async flights;
+- `await Task.WhenAll`;
+- orchestration-level `try/catch`.
 
 ### Optional HTTP component
 
-Obtains control-tower information for Part D if it is implemented.
+Owns Part D control-tower communication if implemented.
 
 ---
 
 ## 3. Dependency direction
 
-The initial conceptual structure is:
+```text
+Console / Menu
+      ↓
+Part-specific orchestration
+      ↓
+DroneFlight
+      ↓
+DroneModel
 
-`Console / Menu → Part A/B/C orchestration → Drone flight → DroneModel`
+DroneFlight
+      ↓
+FlightEvent
+```
 
-For Part D:
+Part D:
 
-`Orchestration → HTTP component → Control Tower API`
+```text
+Part D orchestration
+      ↓
+HTTP component
+      ↓
+Control Tower API
+```
 
-No additional layers are currently justified.
-
----
-
-## 4. Part A design
-
-The normal Part A run should:
-
-1. prepare at least two drones;
-2. create one `Thread` per drone;
-3. start the threads;
-4. let each thread perform its drone's checkpoint progression;
-5. call `Join` for the required threads;
-6. report overall completion after the joins finish.
-
-The no-`Join` demonstration should use the same basic flight scenario so that the effect of removing the wait mechanism can be compared directly.
-
-The exact way the demonstration is exposed to the console is not yet fixed.
-
----
-
-## 5. Part B design
-
-The Part B run should:
-
-1. prepare at least two drones;
-2. create one `TaskCompletionSource` per drone;
-3. start the corresponding drone work;
-4. complete or fault each TCS according to the drone outcome;
-5. coordinate the tasks with `Task.WhenAll`;
-6. make the required task failure and `Task.Exception` behaviour observable.
-
-The failure trigger must be deterministic. Its exact condition is still open.
+No additional architectural layers are currently justified.
 
 ---
 
-## 6. Part C design
+## 4. Shared flight behaviour
 
-The Part C run should:
+Parts A–C use the same underlying flight concept:
 
-1. start multiple asynchronous drone flights;
-2. progress each drone through its checkpoints;
-3. use `await Task.Delay` between steps;
-4. coordinate the flights with `await Task.WhenAll`;
-5. use `try/catch` around the orchestration.
+1. validate the drone configuration;
+2. report `Started`;
+3. report checkpoint `0`;
+4. for each remaining checkpoint:
+   - apply `DelayMs`;
+   - advance;
+   - report `CheckpointReached`;
+5. report `Completed`.
 
-The async flow must not introduce `.Wait()` or `.Result`.
+For `MaxCheckpoints = 0`, checkpoint `0` is reported and no intermediate delay is required.
 
-Part C should remain similar enough to Part B at the domain level that their implementation and orchestration can be compared meaningfully.
-
----
-
-## 7. Preliminary component structure
-
-The MVP should begin with only the responsibilities actually needed:
-
-- console/menu entry point;
-- shared `DroneModel`;
-- execution/orchestration for Parts A–C;
-- supporting flight logic where this creates a clear responsibility or improves testability.
-
-The exact class breakdown is intentionally not locked before the first behaviours are developed.
+Execution and coordination differ between Parts A–C, but the domain behaviour remains comparable.
 
 ---
 
-## 8. Preliminary public API
+## 5. Part A
 
-The public API should expose behaviour needed by the application and tests rather than implementation details.
+Normal flow:
 
-These are **preliminary contracts**. They define the expected interaction strongly enough to design the first behaviours, but may be refined when the first test exposes a better boundary.
+```text
+Create drones
+→ create one Thread per drone
+→ start Threads
+→ execute DroneFlight
+→ Join all Threads
+→ report overall completion
+```
 
-| Area | Public member | Parameters | Return type | Exceptions / failure | Side effects |
-|---|---|---|---|---|---|
-| Drone configuration | `DroneModel` constructor | `Name`, `MaxCheckpoints`, `DelayMs` | `DroneModel` | Invalid configuration: exact exception TBD | Creates drone configuration |
-| Part A | `Run` | Collection of drones | `void` | Execution failure: TBD | Starts threads, writes progress, waits with `Join` |
-| Part B | `RunAsync` | Collection of drones | `Task` | Task/TCS failure propagates | Starts task-based flights and coordinates them with `Task.WhenAll` |
-| Part C | `RunAsync` | Collection of drones | `Task` | Flight failure propagates to orchestration | Starts async flights and awaits `Task.WhenAll` |
+The no-`Join` demonstration uses the same flight scenario but deliberately omits the waiting step.
 
-The same method name may eventually be avoided across separate classes if that makes the Parts A–C distinction clearer. The table describes the interaction needed, not the final class naming scheme.
+The normal and demonstration paths must remain distinguishable.
 
-### Part A — `Run`
+---
 
-The operation represents the normal thread-based demonstration.
+## 6. Part B
 
-Its contract is that it does not report overall completion until the required `Join` operations have completed.
+```text
+Create drones
+→ create one TCS per drone
+→ start drone work
+→ complete/fault each TCS
+→ Task.WhenAll
+→ observe success/failure
+```
 
-The no-`Join` demonstration should be a separate interaction or explicit variant rather than silently changing the behaviour of the normal `Run` operation.
+The failure trigger must be deterministic.
 
-### Part B — `RunAsync`
+Exact failure and exception contracts remain open until finalized.
 
-The operation represents the TCS/task demonstration.
+---
 
-Its contract includes task completion and failure propagation. The final decision about whether the caller observes the fault directly or receives it through a result object is still open.
+## 7. Part C
 
-### Part C — `RunAsync`
+```text
+Create drones
+→ start async flights
+→ await Task.Delay between checkpoints
+→ await Task.WhenAll
+→ handle orchestration failure with try/catch
+```
 
-The operation represents asynchronous drone orchestration.
+The async path must not use `.Wait()` or `.Result`.
 
-Its contract includes asynchronous completion, `Task.WhenAll`, and propagation of flight failure to the orchestration boundary.
+---
 
-### DroneModel validation contract
+## 8. Public API
 
-The model must not allow invalid configuration to enter normal flight execution once the validation decision is finalized.
+The first behaviour needs a deterministic observation boundary.
 
-The exact validation location and exception types remain open.
+### `DroneModel`
+
+```text
+Name : string
+MaxCheckpoints : int
+DelayMs : int
+```
+
+### `FlightEvent`
+
+Represents one observable flight event.
+
+The exact final property set may evolve if testing reveals a better observation boundary.
+
+### `DroneFlight.Run`
+
+```text
+void Run(DroneModel drone, Action<FlightEvent> report)
+```
+
+Purpose:
+
+Executes one synchronous drone flight and reports observable events.
+
+Side effect:
+
+Invokes `report`.
+
+Console output is not produced by `DroneFlight`.
+
+### `DroneFlight.RunAsync`
+
+```text
+Task RunAsync(DroneModel drone, Action<FlightEvent> report)
+```
+
+Purpose:
+
+Executes one asynchronous drone flight and reports observable events.
+
+Side effect:
+
+Invokes `report`.
+
+Failure propagates through the returned task.
+
+### Part-specific orchestration
+
+Exact class names and final signatures remain open until their behaviours are implemented.
+
+Required contracts:
+
+- Part A: `Thread` + `Join`;
+- Part B: `Task` + TCS + `Task.WhenAll`;
+- Part C: `async` + `await Task.WhenAll` + `try/catch`.
 
 ---
 
 ## 9. Observability
 
-The application needs enough output to demonstrate:
+`FlightEvent` provides the deterministic observation boundary for tests.
 
-- drone start;
-- checkpoint progress;
-- drone completion;
-- failure;
-- overall completion;
-- the effect of `Join`;
-- the effect of removing `Join`;
-- concurrent/interleaved progress.
+The application can transform events into console output.
 
-Exact ordering of concurrent console output is not a contract.
+The design therefore separates:
 
-Where a behaviour needs deterministic testing, the design should allow the test to observe a stable result without depending on thread scheduling.
+```text
+Flight behaviour
+      ↓
+FlightEvent
+      ↓
+Orchestration / Console output
+```
+
+This allows automated verification without making `Console.WriteLine` the core flight API.
+
+Exact concurrent console ordering is not a contract.
 
 ---
 
-## 10. Testability implications
+## 10. Testability
 
-The design should keep deterministic domain behaviour separable from inherently timing-dependent demonstrations.
+### Automated behaviour
 
-Likely automated-test candidates include:
-
-- drone configuration validation;
-- checkpoint progression and ordering;
-- successful completion;
+- configuration;
+- checkpoint progression;
+- checkpoint order;
+- completion;
+- flight events;
 - deterministic Part B failure;
-- task failure propagation;
-- async completion/failure behaviour.
+- task completion/failure;
+- async completion/failure.
 
-Primarily manual/inspection-based candidates include:
+### Implementation inspection
 
-- exact concurrent console ordering;
-- the visual difference between `Join` and no `Join`;
-- implementation use of a specifically required technology when the behaviour itself cannot prove that detail.
+- `Thread`;
+- `Join`;
+- `Task`;
+- `TaskCompletionSource`;
+- `Task.WhenAll`;
+- `async`;
+- `Task.Delay`;
+- `await Task.WhenAll`;
+- `try/catch`;
+- no synchronous blocking.
 
-Detailed test levels and scenarios belong in `testplan.md`.
+### Manual observation
+
+- no-`Join` demonstration;
+- non-deterministic/interleaved console output.
+
+Detailed test scenarios are in:
+
+`AsyncDroneDash.Tests/TestPlan.md`
 
 ---
 
 ## 11. Requirement traceability
 
-The traceability chain for mandatory requirements is:
+| ID | Requirement | Acceptance criterion | Behaviour | Verification |
+|---|---|---|---|---|
+| `R1` | Runnable C# console application | `AC-DLV-1` | Project runs | `D01` |
+| `R2` | Required `DroneModel` properties | `AC-CORE-1` | `B1` | `I01`, `T01` |
+| `R3` | Progress `0..MaxCheckpoints` | `AC-CORE-2` | `B2`, `B3` | `T04`, `T05` |
+| `R4` | Apply configured delay | `AC-A3` | `B4` | `T07`, `I02` |
+| `R5` | Report start/progress/completion | `AC-CORE-3` | `B5` | `T08`, `T13` |
+| `R6` | Part A uses separate Threads | `AC-A1` | `B6` | `T10`, `I03` |
+| `R7` | Part A uses Join | `AC-A2` | `B7` | `T11`, `I04` |
+| `R8` | Demonstrate no Join | `AC-A4` | `B8` | `M01`, `I05` |
+| `R9` | Demonstrate concurrent output | `AC-A5` | `B9` | `M02` |
+| `R10` | Part B uses Task | `AC-B1` | `B10` | `T15`, `I06` |
+| `R11` | One TCS per drone | `AC-B2` | `B11` | `T16`, `I07` |
+| `R12` | Part B uses Task.WhenAll | `AC-B3` | `B12` | `T17`, `T21`, `I08` |
+| `R13` | Part B failure scenario | `AC-B4` | `B13` | `T18` |
+| `R14` | Part B failure propagation | `AC-B5` | `B14` | `T19`, `T21` |
+| `R15` | Task.Exception demonstrated | `AC-B6` | `B15` | `T20`, `I09` |
+| `R16` | Part C async flight | `AC-C1` | `B16` | `T22`, `I10` |
+| `R17` | Part C uses await Task.Delay | `AC-C2` | `B17` | `T23`, `I11` |
+| `R18` | Multiple async flights | `AC-C3` | `B18` | `T24` |
+| `R19` | Part C uses await Task.WhenAll | `AC-C3` | `B19` | `T25`, `I12` |
+| `R20` | Part C uses try/catch | `AC-C4` | `B20` | `T26`, `I13` |
+| `R21` | Compare Part C with Part B | `AC-C5` | Comparison | `D05` |
+| `R22` | Menu for Parts A–D | `AC-DLV-2` | Menu | `M03` |
+| `R23` | GitHub repository | `AC-DLV-5` | Delivery | `D06` |
+| `R24` | README requirements | `AC-DLV-3` | Documentation | `D07`, `D08` |
+| `R25` | Reflection requirements | `AC-DLV-4` | Reflection | `D09` |
 
-`Requirement → Acceptance Criterion → Behaviour → Test`
-
-The requirement IDs below cover the mandatory core, Parts A–C, and project delivery requirements. Optional Part D requirements are tracked separately because they are not part of the MVP.
-
-| ID | Requirement | Acceptance criteria | Behaviour |
-|---|---|---|---|
-| R1 | Runnable C# console application | AC-DLV-1 | Project runs |
-| R2 | Drone has `Name`, `MaxCheckpoints`, and `DelayMs` | AC-CORE-1 | B1 |
-| R3 | Drone progresses from `0` to `MaxCheckpoints` | AC-CORE-2 | B2 / B3 |
-| R4 | Configured delay is applied between checkpoint steps | AC-A3 | B4 |
-| R5 | Drone progress, start, and completion are reported | AC-CORE-3 | B5 |
-| R6 | Part A starts at least two drones concurrently on separate `Thread` instances | AC-A1 | B6 |
-| R7 | Part A uses `Join` before reporting overall completion | AC-A2 | B7 |
-| R8 | Part A demonstrates the effect of removing `Join` | AC-A4 | B8 |
-| R9 | Part A demonstrates interleaved/non-deterministic concurrent output | AC-A5 | B9 |
-| R10 | Part B represents drone flights with `Task` | AC-B1 | B10 |
-| R11 | Part B uses one `TaskCompletionSource` per drone | AC-B2 | B11 |
-| R12 | Part B coordinates drone tasks with `Task.WhenAll` | AC-B3 | B12 |
-| R13 | Part B demonstrates a failure scenario | AC-B4 | B13 |
-| R14 | Part B propagates failure through the task/TCS model | AC-B5 | B14 |
-| R15 | Part B demonstrates task exception observation including `Task.Exception` | AC-B6 | B15 |
-| R16 | Part C uses an async drone-flight method | AC-C1 | B16 |
-| R17 | Part C uses `await Task.Delay` between checkpoint steps | AC-C2 | B17 |
-| R18 | Part C allows multiple drone flights to progress concurrently | AC-C3 | B18 |
-| R19 | Part C coordinates flights with `await Task.WhenAll` | AC-C3 | B19 |
-| R20 | Part C uses `try/catch` for orchestration errors | AC-C4 | B20 |
-| R21 | Part C allows comparison with Part B | AC-C5 | Reflection / implementation comparison |
-| R22 | Application provides a menu for Parts A–D | AC-DLV-2 | Menu behaviour |
-| R23 | Project is stored in GitHub | AC-DLV-5 | Repository verification |
-| R24 | `README.md` contains running and testing instructions | AC-DLV-3 | Documentation verification |
-| R25 | `reflection.md` contains the required observations and answers | AC-DLV-4 | Documentation verification |
-
-Each requirement must ultimately be represented by at least one meaningful acceptance criterion or an explicit verification method.
-
-The detailed relationship between behaviours and concrete tests is established later in `testplan.md`.
+Detailed test definitions live in `AsyncDroneDash.Tests/TestPlan.md`.
 
 ---
 
-## 12. Design risks
+## 12. Part D traceability
 
-| Risk | Consequence | Current response |
+Part D is optional.
+
+| ID | Optional behaviour | Verification |
 |---|---|---|
-| Thread scheduling is non-deterministic | Exact order cannot be asserted reliably | Keep race demonstration primarily observational |
-| Concurrent console output | Brittle output tests | Avoid exact ordering assertions |
-| Real delays slow tests | Slow test suite | Separate timing demonstration from fast deterministic tests |
-| TCS failure semantics are misunderstood | Incorrect Part B implementation | Verify with official documentation or a focused spike |
-| `Task.WhenAll` failure behaviour is misunderstood | Incorrect failure handling | Verify before finalizing related tests |
-| Async exception flow is misunderstood | Incorrect Part C behaviour | Verify with official .NET documentation |
-| Async code becomes blocking | Violates Part C objective | Do not use `.Wait()` or `.Result` in the async path |
-| Part D expands scope | MVP delayed | Defer D until MVP is complete |
-| Architecture becomes over-engineered | Time spent without improving the solution | Add only concrete responsibilities |
+| `D-B1` | Route retrieval | `D10` |
+| `D-B2` | Weather retrieval | `D11` |
+| `D-B3` | Restrictions retrieval | `D12` |
+| `D-B4` | Data affects simulation | `D13` |
+| `D-B5` | HTTP failure handling | `D14` |
+| `D-B6` | Timeout handling | `D15` |
+| `D-B7` | HTTP logging | `D16` |
+| `D-B8` | Concurrent HTTP calls | `D17` |
+| `D-B9` | Sequential/concurrent comparison | `D18` |
 
 ---
 
-## 13. Design decisions
+## 13. Risks
 
-### Keep Parts A–C visibly different
-
-The required execution mechanisms are part of the learning objective. The architecture should therefore not abstract them into a single implementation that hides their differences.
-
-### Separate orchestration from flight work
-
-The component coordinating multiple flights should not also own all drone-specific execution logic.
-
-### Keep the architecture proportional
-
-No additional application/domain/infrastructure layers are introduced unless a real responsibility requires them.
-
-### Keep async flow asynchronous
-
-Part C should propagate asynchronous execution upward rather than blocking synchronously.
-
-### Preserve a simple domain
-
-The domain remains focused on drone configuration and checkpoint flight behaviour. Optional API concepts do not enter the MVP domain unless Part D creates a concrete need.
+| Risk | Response |
+|---|---|
+| Thread scheduling is non-deterministic | Test completion semantics; observe race output manually |
+| Console output is unstable | Test structured events; manually observe interleaving |
+| Real delays make tests slow/flaky | Use deterministic observation seams; avoid wall-clock assertions |
+| TCS/WhenAll semantics are misunderstood | Verify with focused tests/spikes |
+| Async flow becomes blocking | Inspect for `.Wait()` / `.Result` |
+| Part D expands scope | Complete A–C before committing significant D work |
+| Architecture becomes over-engineered | Add layers only when a concrete responsibility requires them |
 
 ---
 
-## 14. Open design decisions
+## 14. Open decisions
 
-- Exact production class names.
-- Exact final method names and signatures.
-- Exact validation location.
-- Exact exception types for invalid configuration.
-- Exact Part B failure trigger.
-- Exact no-`Join` implementation/entry point.
-- Whether a shared abstraction between Parts A–C is useful.
-- Whether an interface is justified.
-- Final project folder structure.
-- Part D architecture if Part D is implemented.
+- exact validation contract;
+- exact Part B failure trigger/exception;
+- final Part A/B/C orchestration class names and signatures;
+- exact no-`Join` presentation;
+- whether any additional abstraction is justified;
+- final Part D architecture if implemented.
 
-These decisions are intentionally open where fixing them now would amount to designing beyond the information currently available.
+Open decisions should be resolved when the dependent behaviour requires them rather than being invented prematurely.
 
 ---
 
-## 15. First behaviour readiness
+## 15. First behaviour
 
-A suitable first behaviour is:
+**VB05 — Report the first checkpoint**
 
-> Given a valid drone configuration, when a basic drone flight is executed, the expected checkpoint progression is observable.
+Traceability:
 
-The first implementation should establish a small, deterministic boundary around this behaviour before the more concurrency-specific orchestration is built.
+`R3 → AC-CORE-2 → VB05 → T05`
 
-Before the first test is written, the production owner, required input, observable result, and public interaction should be clear.
+Scenario:
+
+```text
+Given a valid drone with MaxCheckpoints = 0
+When the basic flight is executed
+Then checkpoint 0 is observable
+```
+
+Current interaction:
+
+```text
+DroneFlight.Run(DroneModel, Action<FlightEvent>)
+```
+
+The first TDD cycle can therefore use structured flight events rather than console output.
 
 ---
 
-# Phase 4–5 status
+# Status
 
-## Phase 4 — Traceability and risk
+### Phase 4 — Traceability and risk
 
-- [x] Mandatory requirements have IDs.
-- [x] Requirements are linked to acceptance criteria.
-- [x] Acceptance criteria are linked to behaviours.
-- [x] Important project risks are identified.
-- [x] Risk priorities are understood.
+- [x] Requirements have IDs.
+- [x] Requirements connect to acceptance criteria.
+- [x] Acceptance criteria connect to behaviours.
+- [x] Verification connects through to `TestPlan.md`.
+- [x] Major risks identified.
 
-## Phase 5 — Solution design
+### Phase 5 — Solution design
 
-- [x] Major responsibilities have plausible owners.
-- [x] Dependency direction is defined.
-- [x] Parts A–C have distinct execution responsibilities.
-- [x] A preliminary public API exists with parameters, return types, failure/exception considerations and side effects.
-- [x] Observability has been considered.
-- [x] Unnecessary architecture has been deliberately avoided.
-- [ ] Final API contracts are established through the later behaviour/test design.
-- [ ] Remaining open design decisions are resolved when sufficient information exists.
+- [x] Responsibilities identified.
+- [x] Dependency direction established.
+- [x] Parts A–C separated by execution model.
+- [x] First public API defined.
+- [x] Deterministic observation boundary defined.
+- [x] Testability considered without adding unnecessary layers.
+- [ ] Validation contracts finalized.
+- [ ] Part B failure contract finalized.
+- [ ] Part-specific orchestration APIs finalized when their behaviours are implemented.
+- [ ] Part D architecture finalized if Part D enters implementation.
