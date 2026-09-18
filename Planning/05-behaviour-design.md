@@ -206,7 +206,6 @@ Part D is optional in the assignment and active because it is currently selected
 | `VB-D09` | HTTP lifecycle is logged | `PD10 → AC-D9` |
 | `VB-D10` | Sequential and concurrent HTTP modes can be compared | `PD11 → AC-D10` |
 | `VB-D11` | Variable response time is demonstrable | `PD12 → AC-D11` |
-| `VB-D12` | Unknown route drone is reported as not found | `E4 → AC-EDGE-4` |
 
 The local API is:
 
@@ -234,7 +233,7 @@ Core
     └── B16–B20 → VB22–VB27
 
 Optional Part D
-└── VB-D00–VB-D12
+└── VB-D00–VB-D11
 
 Edge cases
 └── VB-E04–VB-E05

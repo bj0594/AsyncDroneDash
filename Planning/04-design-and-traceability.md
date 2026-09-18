@@ -44,9 +44,9 @@ Provides the observable boundary between flight logic and presentation/testing.
 The observable event data is:
 
 ```text
-Type
-Checkpoint?
-Exception?
+Type       : FlightEventType
+Checkpoint : int?
+Exception  : Exception?
 ```
 
 The exact event-type rules are defined in the domain contract.
@@ -182,8 +182,15 @@ Side effects:
 ### Part A orchestration
 
 ```text
-ThreadRaceRunner.RunWithJoin(...)
-ThreadRaceRunner.RunWithoutJoin(...)
+void RunWithJoin(
+    IReadOnlyList<DroneModel> drones,
+    Action<FlightEvent> report
+)
+
+void RunWithoutJoin(
+    IReadOnlyList<DroneModel> drones,
+    Action<FlightEvent> report
+)
 ```
 
 `RunWithJoin` does not return overall completion before all participating threads have finished.
@@ -410,27 +417,27 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 
 | Requirement | Acceptance criterion | Behaviour | Verification |
 |---|---|---|---|
-| `R1` | `AC-CORE-1` | Project runs | `DOC01`, `M03` |
+| `R1` | `AC-CORE-1` | Project runs | `DOC01` |
 | `R2` | `AC-CORE-2` | `B1`, `VB01` | `T01`, `I01` |
 | `R3` | `AC-CORE-3` | `B2/B3`, `VB05/VB06` | `T04`, `T05` |
 | `R4` | `AC-CORE-4` | `B4`, `VB07` | `T07`, `I02` |
-| `R5` | `AC-CORE-5` | `B5`, `VB08` | `T08`, `T12`, `T13` |
+| `R5` | `AC-CORE-5` | `B5`, `VB08/VB13` | `T08`, `T12`, `T13` |
 | `R6` | `AC-A1` | `B6`, `VB09/VB14` | `T10`, `T14`, `I03` |
 | `R7` | `AC-A2` | `B7`, `VB10` | `T11`, `I04` |
 | `R8` | `AC-A3` | `B8`, `VB11` | `M01`, `I05` |
 | `R9` | `AC-A4` | `B9`, `VB12` | `M02` |
-| `R10` | `AC-B1` | `B10`, `VB13` | `T15`, `I06` |
-| `R11` | `AC-B2` | `B11`, `VB14` | `T16`, `I07` |
-| `R12` | `AC-B3` | `B12`, `VB15/VB21` | `T17`, `T21`, `I08` |
-| `R13` | `AC-B4` | `B13`, `VB16` | `T18` |
-| `R14` | `AC-B5` | `B14`, `VB17` | `T19`, `T21` |
-| `R15` | `AC-B6` | `B15`, `VB18` | `T20`, `I09` |
-| `R16` | `AC-C1` | `B16`, `VB19` | `T22`, `I10` |
-| `R17` | `AC-C2` | `B17`, `VB20` | `T23`, `I11` |
-| `R18` | `AC-C3` | `B18`, `VB21` | `T24`, `I12` |
-| `R19` | `AC-C4` | `B19`, `VB22` | `T25`, `I13` |
-| `R20` | `AC-C5` | `B20`, `VB23` | `T26`, `I14`, `I15` |
-| `R21` | `AC-C6` | `VB24` | `DOC05` |
+| `R10` | `AC-B1` | `B10`, `VB15` | `T15`, `I06` |
+| `R11` | `AC-B2` | `B11`, `VB16` | `T16`, `I07` |
+| `R12` | `AC-B3` | `B12`, `VB17/VB21` | `T17`, `T21`, `I08` |
+| `R13` | `AC-B4` | `B13`, `VB18` | `T18` |
+| `R14` | `AC-B5` | `B14`, `VB19/VB21` | `T19`, `T21` |
+| `R15` | `AC-B6` | `B15`, `VB20` | `T20`, `I09` |
+| `R16` | `AC-C1` | `B16`, `VB22` | `T22`, `I10` |
+| `R17` | `AC-C2` | `B17`, `VB23` | `T23`, `I11` |
+| `R18` | `AC-C3` | `B18`, `VB24` | `T24`, `I12` |
+| `R19` | `AC-C4` | `B19`, `VB25` | `T25`, `I13` |
+| `R20` | `AC-C5` | `B20`, `VB26` | `T26`, `I14`, `I15` |
+| `R21` | `AC-C6` | `VB27` | `DOC05` |
 | `R22` | `AC-DLV-1` | Menu | `M03` |
 | `R23` | `AC-DLV-2` | Delivery | `DOC06` |
 | `R24` | `AC-DLV-3` | Documentation | `DOC07`, `DOC08` |
@@ -438,7 +445,7 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 | `E1` | `AC-EDGE-1` | `VB02` | `T02` |
 | `E2` | `AC-EDGE-2` | `VB03` | `T03` |
 | `E3` | `AC-EDGE-3` | `VB04` | `T06` |
-| `E4` | `AC-EDGE-4` | `VB-D12` | `HTTP08` |
+| `E4` | `AC-EDGE-4` | `VB-E04` | `HTTP08` |
 | `E5` | `AC-EDGE-5` | `VB-E05` | `HTTP05`, `HTTP06`, `HTTP07` |
 | `PD1` | `AC-D0` | `VB-D00` | `HTTP00`, `I18`, `I19` |
 | `PD2` | `AC-D1` | `VB-D01` | `HTTP01` |
@@ -448,7 +455,7 @@ Concurrency verification must prove meaningful overlap/coordination rather than 
 | `PD6` | `AC-D5` | `VB-D05` | `HTTP05`, `HTTP07` |
 | `PD7` | `AC-D6` | `VB-D06` | `HTTP06` |
 | `PD8` | `AC-D7` | `VB-D07/VB-D08` | `HTTP09`, `I18` |
-| `PD9` | `AC-D8` | `VB-D03/VB-D08` | `HTTP03` |
+| `PD9` | `AC-D8` | `VB-D03` | `HTTP03` |
 | `PD10` | `AC-D9` | `VB-D09` | `HTTP10` |
 | `PD11` | `AC-D10` | `VB-D10` | `HTTP11`, `M04` |
 | `PD12` | `AC-D11` | `VB-D11` | `HTTP12`, `M05` |
@@ -477,6 +484,12 @@ Mandatory core design is locked.
 
 Selected Part D contracts are defined in `03-domain-and-rules.md`.
 
-This document owns the component responsibilities, public API, dependency direction, observation boundary and requirement traceability.
+This document owns:
+
+- component responsibilities;
+- public API;
+- dependency direction;
+- observation boundary;
+- requirement traceability.
 
 No mandatory design contract is intentionally open.

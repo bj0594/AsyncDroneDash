@@ -310,7 +310,7 @@ Verify a deliberate no-Join path exists.
 
 ### M01 — ThreadRace_WithoutJoin_ShouldDemonstratePrematureContinuation
 
-`R8`
+`R8 → AC-A3 → VB11`
 
 Observe main-thread continuation before all drone threads have completed.
 
@@ -318,7 +318,7 @@ Observe main-thread continuation before all drone threads have completed.
 
 ### M02 — ThreadRace_ShouldDemonstrateInterleavedOutput
 
-`R9`
+`R9 → AC-A4 → VB12`
 
 Observe interleaving or reordering of concurrent console output.
 
@@ -682,7 +682,7 @@ Malformed JSON, missing required data, or invalid response values map to `Invali
 
 ### HTTP08 — ControlTower_UnknownDrone_ShouldProduceNotFound
 
-`E4 → AC-EDGE-4 → VB-D12`
+`E4 → AC-EDGE-4 → VB-E04`
 
 Oracle:
 
@@ -760,7 +760,7 @@ Verify finalized:
 
 ### M04 — ControlTower_SequentialAndConcurrentModes_ShouldBeCompared
 
-`PD11 → AC-D10`
+`PD11 → AC-D10 → VB-D10`
 
 Observe:
 
@@ -772,7 +772,7 @@ Elapsed time is an observation, not a functional pass/fail threshold.
 
 ### M05 — ControlTower_VariableResponseDelay_ShouldBeObservable
 
-`PD12 → AC-D11`
+`PD12 → AC-D11 → VB-D11`
 
 Observe varied local response delays.
 
