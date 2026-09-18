@@ -49,7 +49,9 @@ public class ControlTowerTests
         // Arrange
         var handler = new StubHttpMessageHandler(request =>
         {
-            Assert.Equal("/weather", request.RequestUri!.PathAndQuery);
+            Assert.Equal(
+                "/weather",
+                request.RequestUri!.PathAndQuery);
 
             return JsonResponse(
                 $$"""{"condition":"{{expectedCondition}}"}""");

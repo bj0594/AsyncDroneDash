@@ -51,25 +51,73 @@ public class AsyncFlightTests
         };
 
         var events = new List<FlightEvent>();
-        Action<FlightEvent> report = events.Add;
+        var alphaStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var betaStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowProgress = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Action<FlightEvent> report = flightEvent =>
+        {
+            lock (events)
+            {
+                events.Add(flightEvent);
+            }
+
+            if (flightEvent.DroneName == "Alpha" &&
+                flightEvent.Type == FlightEventType.Started)
+            {
+                alphaStarted.TrySetResult(true);
+            }
+
+            if (flightEvent.DroneName == "Beta" &&
+                flightEvent.Type == FlightEventType.Started)
+            {
+                betaStarted.TrySetResult(true);
+            }
+
+            if (flightEvent.Type == FlightEventType.Started)
+            {
+                _ = WaitForBothDronesAsync(
+                    alphaStarted.Task,
+                    betaStarted.Task,
+                    allowProgress);
+            }
+        };
+
+        async Task WaitForBothDronesAsync(
+            Task alphaTask,
+            Task betaTask,
+            TaskCompletionSource<bool> gate)
+        {
+            await Task.WhenAll(alphaTask, betaTask);
+            gate.TrySetResult(true);
+        }
 
         // Act
-        await AsyncFlightRunner.RunAsync(
+        var task = AsyncFlightRunner.RunAsync(
             new[] { alpha, beta },
             failureDroneName: null,
             report);
 
+        await allowProgress.Task;
+        await task;
+
         // Assert
-        var alphaEvents = events
+        List<FlightEvent> capturedEvents;
+        lock (events)
+        {
+            capturedEvents = events.ToList();
+        }
+
+        var alphaEvents = capturedEvents
             .Where(e => e.DroneName == "Alpha")
             .ToList();
 
-        var betaEvents = events
+        var betaEvents = capturedEvents
             .Where(e => e.DroneName == "Beta")
             .ToList();
-
-        Assert.NotEmpty(alphaEvents);
-        Assert.NotEmpty(betaEvents);
 
         Assert.Equal(
             new[]
@@ -91,15 +139,20 @@ public class AsyncFlightTests
             },
             betaEvents.Select(e => e.Type));
 
-        Assert.Contains(
-            events,
-            e => e.DroneName == "Alpha" &&
-                 e.Type == FlightEventType.CheckpointReached);
+        var firstCheckpointIndex = capturedEvents.FindIndex(
+            e => e.Type == FlightEventType.CheckpointReached);
+
+        Assert.True(firstCheckpointIndex >= 0);
 
         Assert.Contains(
-            events,
+            capturedEvents.Take(firstCheckpointIndex),
+            e => e.DroneName == "Alpha" &&
+                 e.Type == FlightEventType.Started);
+
+        Assert.Contains(
+            capturedEvents.Take(firstCheckpointIndex),
             e => e.DroneName == "Beta" &&
-                 e.Type == FlightEventType.CheckpointReached);
+                 e.Type == FlightEventType.Started);
     }
 
     [Fact]
