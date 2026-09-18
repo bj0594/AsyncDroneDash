@@ -2,11 +2,15 @@
 
 ## 1. Purpose
 
-When all mandatory verification items pass, every mandatory assignment requirement has a verification path that has passed.
+The test plan defines how requirements and behaviours will be verified.
 
-Verification may be automated, inspected, manually demonstrated, or documented.
+The target is:
 
-Part D is optional in the assignment and active only while it remains in the final target scope.
+> When all mandatory verification items pass, every mandatory assignment requirement has a passing verification path.
+
+Verification can be automated, inspected, manually demonstrated, or documented.
+
+Part D is optional in the assignment and active because it is currently selected as the final project target.
 
 ---
 
@@ -30,8 +34,8 @@ Part D is optional in the assignment and active only while it remains in the fin
 | `R2` | `T01`, `I01` |
 | `R3` | `T04`, `T05` |
 | `R4` | `T07`, `I02` |
-| `R5` | `T08`, `T13` |
-| `R6` | `T10`, `I03` |
+| `R5` | `T08`, `T12`, `T13` |
+| `R6` | `T10`, `T14`, `I03` |
 | `R7` | `T11`, `I04` |
 | `R8` | `M01`, `I05` |
 | `R9` | `M02` |
@@ -58,8 +62,8 @@ Part D is optional in the assignment and active only while it remains in the fin
 
 | Edge case | Verification |
 |---|---|
-| `E1` Negative MaxCheckpoints | `T02` |
-| `E2` Negative DelayMs | `T03` |
+| `E1` Negative `MaxCheckpoints` | `T02` |
+| `E2` Negative `DelayMs` | `T03` |
 | `E3` Missing/blank name | `T06` |
 | `E4` Unknown drone | `HTTP08` |
 | `E5` Control-tower failure/invalid response/timeout | `HTTP05`, `HTTP06`, `HTTP07` |
@@ -68,15 +72,19 @@ Part D is optional in the assignment and active only while it remains in the fin
 
 ## 5. Core automated tests
 
-### T01 — DroneModel_ValidConfiguration_ShouldBeAccepted
+### T01 — DroneFlight_ValidConfiguration_ShouldBeAccepted
 
 `R2 → AC-CORE-2 → VB01`
 
 Unit / Fact.
 
-Oracle: valid values are accepted and preserved.
+Oracle:
 
-### T02 — DroneModel_NegativeMaxCheckpoints_ShouldBeRejected
+A valid configuration reaches the flight boundary successfully and preserves the supplied values.
+
+---
+
+### T02 — DroneFlight_NegativeMaxCheckpoints_ShouldBeRejected
 
 `E1 → AC-EDGE-1 → VB02`
 
@@ -84,9 +92,13 @@ Unit / Theory.
 
 Representative negative values.
 
-Oracle: `ArgumentOutOfRangeException`.
+Oracle:
 
-### T03 — DroneModel_NegativeDelayMs_ShouldBeRejected
+`ArgumentOutOfRangeException`.
+
+---
+
+### T03 — DroneFlight_NegativeDelayMs_ShouldBeRejected
 
 `E2 → AC-EDGE-2 → VB03`
 
@@ -94,7 +106,11 @@ Unit / Theory.
 
 Representative negative values.
 
-Oracle: `ArgumentOutOfRangeException`.
+Oracle:
+
+`ArgumentOutOfRangeException`.
+
+---
 
 ### T04 — DroneFlight_Checkpoints_ShouldProgressFromZeroToMax
 
@@ -102,9 +118,17 @@ Oracle: `ArgumentOutOfRangeException`.
 
 Unit / Theory.
 
-Representative values: `0`, `1`, `3`.
+Representative values:
 
-Oracle: exact sequence `0..MaxCheckpoints`.
+- `0`;
+- `1`;
+- `3`.
+
+Oracle:
+
+Exact checkpoint sequence `0..MaxCheckpoints`.
+
+---
 
 ### T05 — DroneFlight_ZeroMaxCheckpoints_ShouldReportZeroAndComplete
 
@@ -112,7 +136,11 @@ Oracle: exact sequence `0..MaxCheckpoints`.
 
 Unit / Fact.
 
-Oracle: checkpoint `0` then completion.
+Oracle:
+
+`CheckpointReached(0)` is observed and is followed by completion.
+
+---
 
 ### T06 — DroneFlight_MissingOrBlankName_ShouldBeRejected
 
@@ -120,19 +148,31 @@ Oracle: checkpoint `0` then completion.
 
 Unit / Theory.
 
-Cases: null, empty, whitespace.
+Cases:
 
-Oracle: `ArgumentException`.
+- `null`;
+- empty string;
+- whitespace-only string.
+
+Oracle:
+
+`ArgumentException`.
+
+---
 
 ### T07 — DroneFlight_ShouldApplyConfiguredDelayBetweenCheckpoints
 
 `R4 → AC-CORE-4 → VB07`
 
-Unit/component + inspection.
+Component + implementation inspection / Fact.
 
-Oracle: required delay mechanism is used between checkpoint steps.
+Oracle:
 
-No exact elapsed-time assertion.
+The required delay mechanism occurs between checkpoint steps.
+
+Exact elapsed time is not a correctness oracle.
+
+---
 
 ### T08 — DroneFlight_ShouldReportLifecycle
 
@@ -140,7 +180,11 @@ No exact elapsed-time assertion.
 
 Unit/component / Fact.
 
-Oracle: `Started`, every checkpoint, `Completed`.
+Oracle:
+
+The event stream contains:
+
+`Started → all checkpoints → Completed`.
 
 ---
 
@@ -152,7 +196,13 @@ Oracle: `Started`, every checkpoint, `Completed`.
 
 Component / Fact.
 
-Oracle: all participating drones complete. `I03` proves the required per-drone Thread mechanism.
+Oracle:
+
+All participating drones complete.
+
+`I03` separately proves the required per-drone `Thread` mechanism.
+
+---
 
 ### T11 — ThreadRace_WithJoin_ShouldWaitForAllDrones
 
@@ -160,17 +210,27 @@ Oracle: all participating drones complete. `I03` proves the required per-drone T
 
 Component / Fact.
 
-Oracle: overall completion cannot occur before all required drone threads finish.
+Oracle:
 
-Use controlled synchronization; no arbitrary timing thresholds.
+Overall completion cannot occur before all required drone threads finish.
+
+Use controlled synchronization, not arbitrary timing thresholds.
+
+---
 
 ### T12 — ThreadRace_EachDrone_ShouldReportItsOwnProgress
 
-`R3/R5 → VB06/VB08`
+`R5 → AC-CORE-5 → VB13`
 
 Component / Fact.
 
-Oracle: each participating drone has its own correct checkpoint sequence.
+Use at least two drones with different checkpoint counts.
+
+Oracle:
+
+Each drone has its own correct lifecycle and checkpoint sequence.
+
+---
 
 ### T13 — ThreadRace_ShouldReportLifecycleForEachDrone
 
@@ -178,51 +238,102 @@ Oracle: each participating drone has its own correct checkpoint sequence.
 
 Component / Fact.
 
-Oracle: each drone reports start, checkpoints, completion.
+Oracle:
 
-Exact cross-thread ordering is not asserted.
+Every participating drone reports start, checkpoints and completion.
+
+Exact cross-thread order is not asserted.
+
+---
 
 ### T14 — ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently
 
-`R6 → AC-A1 → VB09`
+`R6 → AC-A1 → VB14`
 
 Component / Fact.
 
-Oracle: a controlled observer/gate can establish that at least two participating drone Threads enter the running phase before the race is allowed to continue. The test must use synchronization rather than elapsed-time thresholds.
+Oracle:
+
+A controlled observer/gate establishes that at least two participating Threads have entered the running phase before the test permits the race to continue.
+
+The test must use synchronization rather than elapsed-time thresholds.
+
+---
 
 ### I01 — DroneModel_ExposesRequiredProperties
 
 `R2`
 
+Verify:
+
+```text
+Name
+MaxCheckpoints
+DelayMs
+```
+
+---
+
 ### I02 — RequiredDelayMechanism_IsUsed
 
 `R4`
 
-Inspect the required delay implementation. Test correctness must not depend on elapsed wall-clock time.
+Inspect the required checkpoint-delay mechanism.
+
+Do not use elapsed wall-clock time as the implementation oracle.
+
+---
 
 ### I03 — PartA_UsesOneThreadPerDrone
 
 `R6`
 
+Verify one `Thread` is created/used per participating drone.
+
+---
+
 ### I04 — PartA_UsesJoin
 
 `R7`
+
+Verify normal Part A orchestration uses `Join` for all participating Threads.
+
+---
 
 ### I05 — PartA_ContainsNoJoinDemonstration
 
 `R8`
 
+Verify a deliberate no-Join path exists.
+
+---
+
 ### M01 — ThreadRace_WithoutJoin_ShouldDemonstratePrematureContinuation
 
 `R8`
+
+Observe main-thread continuation before all drone threads have completed.
+
+---
 
 ### M02 — ThreadRace_ShouldDemonstrateInterleavedOutput
 
 `R9`
 
+Observe interleaving or reordering of concurrent console output.
+
+---
+
 ### M03 — Menu_ShouldExposePartsAThroughD
 
 `R22`
+
+Observe:
+
+- menu appears;
+- Parts A–D are represented;
+- each part can be entered;
+- normal return/exit behaviour works.
 
 ---
 
@@ -230,63 +341,93 @@ Inspect the required delay implementation. Test correctness must not depend on e
 
 ### T15 — TaskFlight_SuccessfulDrone_ShouldCompleteTask
 
-`R10 → AC-B1 → VB13`
-
-Component / Fact.
-
-Oracle: task completes successfully.
-
-### T16 — TaskFlight_ShouldUseIndependentCompletionPerDrone
-
-`R11 → AC-B2 → VB14`
-
-Component / Fact.
-
-Oracle: each drone has an independent completion outcome.
-
-### T17 — TaskFlight_WhenAll_ShouldWaitForAllDrones
-
-`R12 → AC-B3 → VB15`
-
-Component / Fact.
-
-Oracle: combined completion follows all participating tasks.
-
-### T18 — TaskFlight_SimulatedFailure_ShouldFaultOperation
-
-`R13 → AC-B4 → VB16`
-
-Component / Fact.
-
-Oracle: `InvalidOperationException("Simulated drone failure.")`.
-
-The test selects the designated failure scenario without adding a permanent failure property to `DroneModel`.
-
-### T19 — TaskFlight_Failure_ShouldReachOrchestration
-
-`R14 → AC-B5 → VB17`
-
-Component / Fact.
-
-Oracle: failure reaches orchestration and is not silently swallowed.
-
-### T20 — TaskFlight_FaultedTask_ShouldExposeExpectedException
-
-`R15 → AC-B6 → VB18`
+`R10 → AC-B1 → VB15`
 
 Component / Fact.
 
 Oracle:
 
-- task is `Faulted`;
+Successful drone operation reaches a completed Task state.
+
+---
+
+### T16 — TaskFlight_ShouldUseIndependentCompletionPerDrone
+
+`R11 → AC-B2 → VB16`
+
+Component / Fact.
+
+Oracle:
+
+Each participating drone has an independent completion outcome.
+
+---
+
+### T17 — TaskFlight_WhenAll_ShouldWaitForAllDrones
+
+`R12 → AC-B3 → VB17`
+
+Component / Fact.
+
+Oracle:
+
+Combined completion follows all participating tasks.
+
+---
+
+### T18 — TaskFlight_SimulatedFailure_ShouldFaultAfterCheckpointOne
+
+`R13 → AC-B4 → VB18`
+
+Component / Fact.
+
+Scenario:
+
+One selected failure drone reaches checkpoint `1`.
+
+Oracle:
+
+It then produces:
+
+`InvalidOperationException("Simulated drone failure.")`
+
+and its operation becomes faulted.
+
+---
+
+### T19 — TaskFlight_Failure_ShouldReachOrchestration
+
+`R14 → AC-B5 → VB19`
+
+Component / Fact.
+
+Oracle:
+
+The failure reaches orchestration and is not silently swallowed.
+
+---
+
+### T20 — TaskFlight_FaultedTask_ShouldExposeExpectedException
+
+`R15 → AC-B6 → VB20`
+
+Component / Fact.
+
+Oracle:
+
+- Task is `Faulted`;
 - `Task.Exception` is non-null;
-- aggregate contains the expected `InvalidOperationException`.
+- its aggregate contains the expected `InvalidOperationException`.
+
+---
 
 ### T21 — TaskFlight_WhenAll_WithFailure_ShouldRepresentCombinedFailure
 
-`R12/R14 → VB15/VB17`
+`R12/R14 → AC-B3/AC-B5 → VB21`
 
 Component / Fact.
+
+Scenario:
 
 One task faults while another has not yet completed.
 
@@ -296,21 +437,31 @@ Oracle:
 - remaining task reaches a terminal state;
 - combined operation does not falsely report success.
 
+---
+
 ### I06 — PartB_UsesTask
 
 `R10`
+
+Verify Task-based representation.
 
 ### I07 — PartB_UsesOneTCSPerDrone
 
 `R11`
 
+Verify one independent TCS per participating drone.
+
 ### I08 — PartB_UsesTaskWhenAll
 
 `R12`
 
+Verify `Task.WhenAll`.
+
 ### I09 — PartB_ObservesTaskException
 
 `R15`
+
+Verify explicit `Task.Exception` observation.
 
 ---
 
@@ -318,45 +469,57 @@ Oracle:
 
 ### T22 — AsyncFlight_ValidDrone_ShouldComplete
 
-`R16 → AC-C1 → VB19`
+`R16 → AC-C1 → VB22`
 
 Component / Fact.
 
-Oracle: async flight completes successfully.
+Oracle:
+
+A valid async flight completes successfully.
 
 ### T23 — AsyncFlight_ShouldUseAsyncDelay
 
-`R17 → AC-C2 → VB20`
+`R17 → AC-C2 → VB23`
 
 Component + inspection / Fact.
 
-Oracle: `await Task.Delay` is used; no elapsed-time oracle.
+Oracle:
+
+Checkpoint delay uses `await Task.Delay`.
+
+No elapsed-time oracle.
 
 ### T24 — AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress
 
-`R18 → AC-C3 → VB21`
+`R18 → AC-C3 → VB24`
 
 Component / Fact.
 
-Oracle: evidence must establish meaningful overlapping progress; eventual completion alone is insufficient.
+Oracle:
 
-The exact scheduling order is not asserted.
+At least two async flights make meaningful overlapping progress.
+
+The test must not require a particular scheduling order.
 
 ### T25 — AsyncFlight_ShouldAwaitTaskWhenAll
 
-`R19 → AC-C4 → VB22`
+`R19 → AC-C4 → VB25`
 
 Component / Fact.
 
-Oracle: overall completion follows all required flights.
+Oracle:
+
+Overall completion follows all required async flights.
 
 ### T26 — AsyncFlight_Failure_ShouldBeHandledByOrchestration
 
-`R20 → AC-C5 → VB23`
+`R20 → AC-C5 → VB26`
 
 Component / Fact.
 
-Oracle: controlled failure reaches orchestration `try/catch`.
+Oracle:
+
+Controlled failure reaches the orchestration `try/catch`.
 
 ### I10 — PartC_UsesAsyncFlightMethod
 
@@ -380,13 +543,20 @@ Oracle: controlled failure reaches orchestration `try/catch`.
 
 ### I15 — PartC_ContainsNoSynchronousBlocking
 
-Inspect absence of `.Wait()` and `.Result` in the async execution path.
+`R20`
+
+Verify `.Wait()` and `.Result` are not used in the async execution path.
 
 ### DOC05 — Reflection_ShouldComparePartBAndPartC
 
-`R21 → AC-C6 → VB24`
+`R21 → AC-C6 → VB27`
 
-Review reflection against actual implementations.
+Verify the final reflection compares:
+
+- boilerplate;
+- complexity;
+- readability;
+- maintainability.
 
 ---
 
@@ -406,33 +576,35 @@ Review reflection against actual implementations.
 
 `R23`
 
-Repository exists and current source is pushed.
+Verify repository existence, current source push, required files, and absence of committed secrets.
 
 ### DOC07 — README_ShouldContainRunInstructions
 
 `R24`
 
-Root README contains prerequisites, build/run/test instructions and local HTTP startup/troubleshooting.
+Verify prerequisites, build/run/test instructions, and local HTTP startup/troubleshooting.
 
 ### DOC08 — README_ShouldExplainPartTesting
 
 `R24`
 
-README explains how Parts A–D are tested/observed and how the local service is started.
+Verify README explains how Parts A–D are tested/observed.
 
 ### DOC09 — Reflection_ShouldContainRequiredContent
 
 `R25`
 
-`reflection.md` answers the five assignment questions and, when Part D is implemented, records the sequential-versus-concurrent HTTP observation.
+Verify `reflection.md` answers the five assignment reflection questions.
+
+When Part D is implemented, it also records the sequential-versus-concurrent HTTP observation.
 
 ---
 
 ## 10. Part D HTTP verification
 
-Part D is optional in the assignment and active because it is the current project target.
+Part D is optional and active because it is currently the final target.
 
-Automated HTTP tests use a controllable local/test HTTP boundary, not an uncontrolled external service.
+Automated HTTP tests use a controllable local/test HTTP boundary.
 
 ### HTTP00 — ControlTower_LocalService_ShouldExposeRequiredEndpoints
 
@@ -440,127 +612,151 @@ Automated HTTP tests use a controllable local/test HTTP boundary, not an uncontr
 
 Integration / Fact.
 
-Oracle: the local service starts and exposes `/route`, `/weather`, and `/restrictions` using the finalized response contracts.
+Oracle:
+
+The local service starts and exposes:
+
+```text
+/route?drone=Navn
+/weather
+/restrictions
+```
+
+using the finalized contracts.
 
 ### HTTP01 — ControlTower_ShouldReturnRouteData
 
 `PD2 → AC-D1 → VB-D01`
 
-Integration / Fact.
+Oracle:
 
-Oracle: `{ "maxCheckpoints": n }` maps correctly.
+Valid route response maps to `RouteData`.
 
 ### HTTP02 — ControlTower_ShouldReturnWeatherData
 
 `PD3 → AC-D2 → VB-D02`
 
-Integration / Fact.
+Oracle:
 
-Oracle: `clear`, `wind`, and `storm` map correctly.
+Valid weather response maps to `WeatherData`.
 
 ### HTTP03 — ControlTower_ShouldReturnRestrictions
 
 `PD9 → AC-D8 → VB-D03`
 
-Integration / Fact.
+Oracle:
 
-Oracle: integer or null maps correctly.
+Restriction response maps correctly, including the no-restriction case.
 
 ### HTTP04 — ControlTower_Data_ShouldAffectSimulation
 
 `PD5 → AC-D4 → VB-D04`
 
-Integration / Fact.
+Oracle:
 
-Oracle: documented final `MaxCheckpoints` and `DelayMs` values.
+Route, weather, and restriction data produce the documented final `MaxCheckpoints` and `DelayMs`.
 
 ### HTTP05 — ControlTower_NonSuccessResponse_ShouldProduceRequestFailed
 
-`PD6 → AC-D5 → VB-D05`
+`PD6/E5 → AC-D5/AC-EDGE-5 → VB-D05/VB-E05`
 
-Integration / Fact.
+Oracle:
 
-Oracle: non-success/connection failure maps to `RequestFailed`.
+Non-success/connection failure maps to `ControlTowerErrorKind.RequestFailed`.
 
 ### HTTP06 — ControlTower_Timeout_ShouldProduceTimeout
 
-`PD7 → AC-D6 → VB-D06`
+`PD7/E5 → AC-D6/AC-EDGE-5 → VB-D06/VB-E05`
 
-Integration / Fact.
+Oracle:
 
-Oracle: timeout maps to `Timeout`.
+Timeout maps to `ControlTowerErrorKind.Timeout`.
 
 ### HTTP07 — ControlTower_InvalidResponse_ShouldProduceInvalidResponse
 
-`PD6 → AC-D5 → VB-D05`
+`PD6/E5 → AC-D5/AC-EDGE-5 → VB-D05/VB-E05`
 
-Integration / Fact.
+Oracle:
 
-Oracle: malformed JSON, missing required property, or invalid value maps to `InvalidResponse`.
+Malformed JSON, missing required data, or invalid response values map to `InvalidResponse`.
 
 ### HTTP08 — ControlTower_UnknownDrone_ShouldProduceNotFound
 
 `E4 → AC-EDGE-4 → VB-D12`
 
-Integration / Fact.
+Oracle:
 
-Oracle: `/route?drone=Unknown` maps to `NotFound`.
+Unknown route name results in `NotFound`.
 
 ### HTTP09 — ControlTower_ShouldRemainAsynchronous
 
-`PD4/PD8 → AC-D3/AC-D7 → VB-D07`
+`PD4/PD8 → AC-D3/AC-D7 → VB-D07/VB-D08`
 
 Integration + inspection.
 
-Oracle: client uses asynchronous APIs and server uses asynchronous request handling without synchronous blocking.
+Oracle:
+
+Client and server use asynchronous APIs without synchronous blocking.
 
 ### HTTP10 — ControlTower_ShouldLogLifecycle
 
 `PD10 → AC-D9 → VB-D09`
 
-Integration/manual.
+Oracle:
 
-Oracle: each request has observable start and completion/failure logging.
+Each HTTP call exposes start and completion/failure logging.
 
 ### HTTP11 — ControlTower_SequentialAndConcurrentResults_ShouldMatch
 
 `PD11 → AC-D10 → VB-D10`
 
-Integration / Fact.
+Oracle:
 
-Oracle: equivalent functional data in both modes.
-
-Manual observation additionally compares relative execution time/overlap; elapsed time is evidence for comparison, not the functional correctness oracle.
+Sequential and concurrent modes produce equivalent functional data.
 
 ### HTTP12 — ControlTower_ShouldProduceVariableResponseTime
 
 `PD12 → AC-D11 → VB-D11`
 
-Integration/manual.
+Oracle:
 
-Oracle: local service can deliberately vary response time. Randomness is manual/demo behaviour; automated tests use controlled delays.
+Local server can deliberately vary response delay.
+
+Automated tests use controlled delays; manual demonstration may use varied/random delays.
+
+---
+
+## 11. Part D inspection and manual comparison
 
 ### I16 — ControlTower_UsesReusableHttpClient
 
 `PD4`
 
+Verify one reusable `HttpClient` is used.
+
 ### I17 — ControlTower_UsesAsyncHttpApis
 
 `PD4`
+
+Verify asynchronous request and response APIs.
 
 ### I18 — LocalControlTower_UsesAsyncRequestHandling
 
 `PD1/PD8`
 
+Verify asynchronous `HttpListener` request handling.
+
 ### I19 — PartD_UsesFinalJsonAndErrorContracts
 
 `PD1–PD12`
 
-Inspect finalized JSON shapes, `ControlTowerErrorKind`, endpoint mapping, and failure translation.
+Verify finalized:
 
----
-
-## 11. Part D manual comparison
+- endpoint shapes;
+- JSON contracts;
+- weather mapping;
+- restriction mapping;
+- error categories.
 
 ### M04 — ControlTower_SequentialAndConcurrentModes_ShouldBeCompared
 
@@ -568,9 +764,17 @@ Inspect finalized JSON shapes, `ControlTowerErrorKind`, endpoint mapping, and fa
 
 Observe:
 
-- both modes return equivalent functional data;
-- concurrent mode shows overlapping request activity in the logs;
-- the relative total execution time is recorded as an observation, not a pass/fail timing threshold.
+- equivalent functional results;
+- overlapping request activity;
+- relative execution behaviour.
+
+Elapsed time is an observation, not a functional pass/fail threshold.
+
+### M05 — ControlTower_VariableResponseDelay_ShouldBeObservable
+
+`PD12 → AC-D11`
+
+Observe varied local response delays.
 
 ---
 
@@ -580,16 +784,23 @@ Observe:
 
 - `MaxCheckpoints = -1` → reject;
 - `MaxCheckpoints = 0` → valid;
-- `MaxCheckpoints = 1` → `0,1`;
-- `MaxCheckpoints = 3` → `0,1,2,3`;
+- `MaxCheckpoints = 1`;
+- `MaxCheckpoints = 3`;
 - `DelayMs = -1` → reject;
 - `DelayMs = 0` → valid;
-- valid positive delay → valid;
+- positive delay;
 - null/empty/whitespace name → reject.
+
+### Part B
+
+- at least two drones;
+- one selected failure target;
+- failure immediately after checkpoint `1`;
+- failure scenario requires `MaxCheckpoints >= 1`.
 
 ### Route
 
-- valid positive count;
+- positive checkpoint count;
 - zero;
 - negative invalid data;
 - unknown drone.
@@ -611,7 +822,7 @@ Observe:
 ### HTTP failures
 
 - `404`;
-- non-success response;
+- non-success status;
 - timeout;
 - malformed JSON;
 - missing required property;
@@ -625,24 +836,28 @@ Preferred automated-test oracles:
 
 - exact checkpoint sequence;
 - captured `FlightEvent` values;
-- task state;
+- Task state;
 - expected exception/error kind;
-- observable orchestration completion;
-- expected mapped HTTP data.
+- expected mapped HTTP data;
+- observable orchestration completion.
 
 Avoid:
 
 - exact thread scheduling order;
 - exact wall-clock duration;
-- expected values calculated by duplicating production logic.
+- expected values produced by duplicating production logic.
+
+Every automated test must answer:
+
+> How would this test fail if the implementation were subtly wrong?
 
 ---
 
 ## 14. Fact / Theory
 
-Use Fact for independent meaningful scenarios.
+Use `Fact` for independent meaningful scenarios.
 
-Use Theory where the same rule applies to representative datasets.
+Use `Theory` when one behaviour genuinely applies to representative datasets.
 
 Good Theory candidates:
 
@@ -650,7 +865,7 @@ Good Theory candidates:
 - name validation;
 - checkpoint progression.
 
-Do not use Theory merely to reduce test-file length.
+Do not use Theory solely to reduce line count.
 
 ---
 
@@ -662,55 +877,60 @@ Use:
 
 Examples:
 
-- `DroneFlight_ValidDrone_ShouldReportCheckpointZero`
-- `DroneFlight_Checkpoints_ShouldProgressFromZeroToMax`
-- `ThreadRace_WithJoin_ShouldWaitForAllDrones`
-- `ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently`
-- `TaskFlight_FaultedTask_ShouldExposeExpectedException`
-- `AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress`
-- `ControlTower_UnknownDrone_ShouldProduceNotFound`
+```text
+DroneFlight_ValidConfiguration_ShouldBeAccepted
+DroneFlight_NegativeMaxCheckpoints_ShouldBeRejected
+DroneFlight_Checkpoints_ShouldProgressFromZeroToMax
+ThreadRace_WithJoin_ShouldWaitForAllDrones
+ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently
+TaskFlight_FaultedTask_ShouldExposeExpectedException
+AsyncFlight_MultipleDrones_ShouldMakeOverlappingProgress
+ControlTower_UnknownDrone_ShouldProduceNotFound
+```
 
 ---
 
 ## 16. Contract and test-design review
 
-- [ ] Every `R1–R25` has a passing verification path.
-- [ ] Every active `E` edge case has verification.
+- [ ] Every `R1–R25` has a verification path.
+- [ ] Every active `E1–E5` edge case has verification.
 - [ ] Every active `PD1–PD12` requirement has verification.
 - [ ] Every mandatory acceptance criterion has verification.
 - [ ] Every mandatory vertical behaviour has verification.
-- [ ] Relevant boundaries and partitions are covered.
+- [ ] Relevant boundaries and equivalence partitions are covered.
 - [ ] Relevant state transitions are covered.
 - [ ] Relevant dependency failures are covered.
-- [ ] Concurrency verification proves coordination/overlap rather than only eventual completion.
-- [ ] Task failure verifies both faulted state and exception information.
-- [ ] Part D tests use controllable dependencies.
-- [ ] No timing test depends on an exact elapsed duration.
+- [ ] Concurrency tests prove overlap/coordination rather than eventual completion only.
+- [ ] Task failure tests verify faulted state and exception information.
+- [ ] Part D automated tests use controllable dependencies.
+- [ ] Timing is never an exact correctness oracle.
 - [ ] Every automated test has a clear oracle.
-- [ ] Implementation-specific requirements have inspection items.
-- [ ] Manual demonstrations are identified.
+- [ ] Required implementation mechanisms have inspection items.
+- [ ] Manual-only assignment demonstrations are explicitly identified.
 - [ ] Test levels are appropriate.
 - [ ] Fact/Theory choices are justified.
 - [ ] Test names express behaviour, scenario and expected result.
-- [ ] Duplicate/redundant tests have been removed.
+- [ ] Duplicate/redundant tests are removed.
 - [ ] No mandatory test depends on an unresolved contract.
 
 ---
 
-## 17. Definition of Ready for test files
+## 17. Definition of Ready
 
-The test files may be created when:
+Test files may be created only when:
 
-1. all contracts in `01–05` are closed;
+1. all mandatory contracts in `01–05` are closed;
 2. every mandatory requirement has a verification path;
 3. every acceptance criterion has a verification path;
-4. every vertical behaviour has a test, inspection, manual, or documentation path;
+4. every mandatory vertical behaviour has verification;
 5. every automated test has a clear oracle and test level;
-6. concurrency scenarios have deterministic observation strategies;
-7. Part D uses controllable HTTP dependencies;
-8. no planned test depends on an unspecified contract.
+6. concurrency tests have deterministic observation strategies;
+7. Part D automated tests use controllable HTTP dependencies;
+8. no planned test depends on an unspecified contract;
+9. `dotnet build` succeeds;
+10. `dotnet test` succeeds before custom tests are added.
 
-This document is the verification map. The actual xUnit code will still be developed iteratively through Red → Green → Refactor.
+The TestPlan is the verification map. The actual xUnit code is still developed iteratively through Red → Green → Refactor.
 
 ---
 
@@ -738,6 +958,13 @@ Observation boundary:
 
 ## 19. Status
 
-The mandatory requirements, selected Part D target, data contracts, error categories, behaviours, test levels, oracles, and verification routes are now defined.
+Planning/test design is ready for the final Definition of Ready check.
 
-No mandatory contract remains intentionally open.
+The next implementation-stage actions are:
+
+- run `dotnet build`;
+- run `dotnet test`;
+- perform the local `HttpListener` spike;
+- resolve any runtime issue discovered by that spike.
+
+No production implementation or full test suite is to be written before those checks pass.
