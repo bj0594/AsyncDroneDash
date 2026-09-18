@@ -4,7 +4,7 @@
 
 Async Drone Dash models multiple delivery drones progressing through simple checkpoint-based routes.
 
-The domain is intentionally small because the project primarily demonstrates concurrent and asynchronous execution.
+The core domain is intentionally small because the project primarily demonstrates concurrent and asynchronous execution.
 
 The core domain does not model physical movement, geography, fuel, battery, packages, customers, or route optimization.
 
@@ -16,7 +16,7 @@ The core domain does not model physical movement, geography, fuel, battery, pack
 |---|---|---|
 | `Name` | `string` | Identifies the drone |
 | `MaxCheckpoints` | `int` | Highest checkpoint the drone should reach |
-| `DelayMs` | `int` | Delay between checkpoint steps |
+| `DelayMs` | `int` | Delay between checkpoint steps in milliseconds |
 
 No additional properties are required by the MVP.
 
@@ -126,11 +126,11 @@ Multiple drone tasks are coordinated with `Task.WhenAll`.
 
 ### B13 — Deterministic failure
 
-The selected Part B scenario produces:
+The Part B demonstration designates one participating drone as the simulated failure target. After the scenario's failure trigger, that drone's TCS is faulted with:
 
 `InvalidOperationException("Simulated drone failure.")`
 
-The failure is introduced by the scenario rather than by a permanent `DroneModel` property.
+The failure is introduced by the Part B scenario rather than by a permanent `DroneModel` property.
 
 ### B14 — Failure propagation
 
@@ -166,11 +166,23 @@ An async flight failure reaches orchestration and is handled with `try/catch`.
 
 ---
 
-## Part D — Optional project target
+# Part D — Optional project target
 
 Part D uses the local `HttpListener` alternative supplied by the assignment and `HttpClient` for the client.
 
-### Endpoints
+## Local service
+
+The selected local service prefix is:
+
+`http://localhost:8080/`
+
+The service runs in the same demonstration application process.
+
+The request loop uses asynchronous request handling rather than blocking `GetContext()`.
+
+The project chooses `HttpListener` because the assignment explicitly offers it as an option. It is not treated as a general recommendation for new production HTTP services.
+
+## Endpoints
 
 ```text
 GET /route?drone=Navn
@@ -180,7 +192,11 @@ GET /restrictions
 
 `/restrictions` is the project's selected extension of the minimum local API described by the assignment.
 
-### Route JSON
+The route handler reads the requested drone name from the request URL/query data. The implementation may inspect `RawUrl` as part of this demonstration because the assignment explicitly calls out that learning point.
+
+## Route JSON
+
+Successful response:
 
 ```json
 {
@@ -190,14 +206,19 @@ GET /restrictions
 
 Rules:
 
-- property is required;
-- value is integer;
-- value must be `>= 0`;
+- `maxCheckpoints` is required;
+- it is an integer;
+- it must be `>= 0`;
 - it is the base route checkpoint count.
 
-An unknown route drone returns HTTP `404`.
+Unknown route drone:
 
-### Weather JSON
+- HTTP `404`;
+- client maps this to `ControlTowerException` with kind `NotFound`.
+
+## Weather JSON
+
+Successful response:
 
 ```json
 {
@@ -213,11 +234,11 @@ Supported values:
 | `wind` | `+250 ms` |
 | `storm` | `+500 ms` |
 
-Unknown values are invalid.
+Unknown values are invalid responses.
 
-### Restriction JSON
+## Restriction JSON
 
-With restriction:
+With active restriction:
 
 ```json
 {
@@ -225,7 +246,7 @@ With restriction:
 }
 ```
 
-Without an active restriction:
+Without active restriction:
 
 ```json
 {
@@ -233,9 +254,13 @@ Without an active restriction:
 }
 ```
 
-The value is either null or a non-negative integer.
+Rules:
 
-### Final configuration
+- property is required;
+- value is either `null` or a non-negative integer;
+- it may reduce the route maximum but never increase it.
+
+## Final simulation configuration
 
 Without restriction:
 
@@ -249,32 +274,38 @@ With restriction:
 
 The final values must satisfy the core validation rules.
 
-### ControlTowerException
+## ControlTowerException
 
-The client translates dependency failures into:
+The public error categories are:
 
-- `RequestFailed` — non-success response except not-found, or connection-level failure;
-- `NotFound` — requested route/drone was not found;
-- `Timeout` — request exceeded configured timeout;
-- `InvalidResponse` — malformed or invalid response data.
+| Kind | Meaning |
+|---|---|
+| `RequestFailed` | Non-success response except `404`, or connection-level request failure |
+| `NotFound` | Requested route/drone does not exist |
+| `Timeout` | Request exceeds configured timeout |
+| `InvalidResponse` | Malformed, incomplete, or semantically invalid response |
 
-The original exception is preserved where useful.
+Public shape:
 
-### Variable response time
+```text
+ControlTowerException : Exception
 
-The local service can vary response time to simulate slow network conditions.
+ControlTowerErrorKind Kind { get; }
+```
 
-Exact elapsed duration is not a correctness rule.
+The exception message explains the failure. The original exception is preserved as `InnerException` where useful.
 
-### HTTP client lifetime
+## Variable response time
 
-`ControlTowerClient` reuses one `HttpClient` for all requests.
+The local service deliberately supports varied response times to simulate slow network conditions.
 
-### Local server execution
+Exact elapsed duration is not a correctness contract.
 
-The local `HttpListener` request loop uses asynchronous request handling and does not use blocking `GetContext()` as its normal request loop.
+For automated tests, delays are controlled rather than random. Randomness is reserved for the manual demonstration.
 
----
+## HTTP client lifetime
+
+`ControlTowerClient` reuses one `HttpClient` for its lifetime.
 
 ## Optional features
 

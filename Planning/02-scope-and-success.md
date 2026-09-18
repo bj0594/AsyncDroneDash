@@ -82,7 +82,7 @@ Everything in the MVP, plus:
 - sequential versus concurrent HTTP comparison;
 - variable local response time.
 
-The target response contracts and mappings are defined in `03-domain-and-rules.md` and `04-design-and-traceability.md`.
+The final Part D data, error, and mapping contracts are defined in `03-domain-and-rules.md` and `04-design-and-traceability.md`.
 
 ---
 
@@ -111,7 +111,7 @@ The MVP is complete when:
 
 - `R1–R21` are satisfied;
 - `R22–R25` delivery requirements are satisfied;
-- the application builds and runs;
+- the application builds and launches;
 - the menu works;
 - Parts A–C can be demonstrated;
 - required implementation mechanisms are present;
@@ -127,7 +127,9 @@ Part D is not required for MVP completion.
 
 # 6. Final project success
 
-The final project is successful when the MVP Definition of Done is satisfied and all selected Part D requirements `PD1–PD12` are implemented and verified. The bonus `PD13` is not required.
+The final project is successful when the MVP Definition of Done is satisfied and all selected Part D requirements `PD1–PD12` are implemented and verified.
+
+`PD13` is bonus only.
 
 If Part D cannot be completed without putting the mandatory submission at risk, the project remains a valid MVP and Part D is omitted from the final submission.
 
@@ -217,7 +219,7 @@ At least two drone tasks are coordinated with `Task.WhenAll`.
 
 `R13`
 
-A defined drone failure scenario causes the affected operation to fault with `InvalidOperationException("Simulated drone failure.")`.
+A selected drone is designated as the simulated failure target; the Part B scenario faults that drone's operation with `InvalidOperationException("Simulated drone failure.")`.
 
 ### AC-B5 — Failure propagation
 
@@ -287,13 +289,13 @@ The project exists in a GitHub repository.
 
 `R24`
 
-The root README contains prerequisites, build/run instructions, testing instructions, and local HTTP startup instructions when applicable.
+The root README contains prerequisites, build/run instructions, testing instructions, and local HTTP startup/troubleshooting instructions when applicable.
 
 ### AC-DLV-4 — Reflection
 
 `R25`
 
-`reflection.md` contains the required observations, short answers, and relevant thoughts.
+`reflection.md` answers the five reflection questions in the assignment and records relevant project observations.
 
 ## Assignment edge cases
 
@@ -325,15 +327,21 @@ An unknown Part D route name is reported through `ControlTowerException.NotFound
 
 `E5`
 
-HTTP failure and timeout produce the documented `ControlTowerException` category when Part D is active.
+HTTP failure, invalid response, and timeout produce the documented `ControlTowerException` category when Part D is active.
 
 ## Conditional Part D
+
+### AC-D0 — Local control-tower service
+
+`PD1`
+
+The local control tower starts inside the demonstration application and exposes the required local endpoints using asynchronous `HttpListener` request handling.
 
 ### AC-D1 — Route information
 
 `PD2`
 
-`/route?drone=Navn` returns valid route information.
+`/route?drone=Navn` returns valid route information and uses the requested drone name from the request URL/query data.
 
 ### AC-D2 — Weather information
 
@@ -357,7 +365,7 @@ Retrieved route, weather, and restriction data produce the documented final simu
 
 `PD6`
 
-Non-success or connection failures produce `ControlTowerException.RequestFailed` or `NotFound` as appropriate.
+Non-success or connection failures produce `ControlTowerException.RequestFailed`, while route-not-found produces `NotFound` and invalid response data produces `InvalidResponse`.
 
 ### AC-D6 — Timeout
 
@@ -387,7 +395,7 @@ Each HTTP call exposes start and completion/failure logging.
 
 `PD11`
 
-Sequential and concurrent request modes return equivalent functional data.
+Sequential and concurrent request modes return equivalent functional data and permit observation of the difference in execution overlap/relative duration.
 
 ### AC-D11 — Variable response time
 

@@ -57,7 +57,7 @@ Owns asynchronous HTTP requests, response mapping, timeout/error translation, an
 
 Conditional Part D component.
 
-Owns local `HttpListener` request handling and deterministic demonstration responses.
+Owns local `HttpListener` request handling, endpoint routing, deterministic response data, and controlled response delay.
 
 ---
 
@@ -102,7 +102,7 @@ Executes one synchronous flight.
 Exceptions:
 
 - invalid configuration → validation contract in `03`;
-- simulated flight failure → documented failure exception when that scenario is used.
+- simulated flight failure → only in the failure scenario where that contract is used.
 
 Side effects:
 
@@ -134,9 +134,11 @@ Task<WeatherData> GetWeatherAsync()
 Task<RestrictionData> GetRestrictionsAsync()
 ```
 
-`HttpClient` is reused for the lifetime of the client.
+The client reuses the supplied `HttpClient` for all requests.
 
-### Part D response models
+All HTTP failures are exposed through `ControlTowerException`.
+
+### Response models
 
 ```text
 RouteData
@@ -157,9 +159,12 @@ ControlTowerErrorKind
     NotFound
     Timeout
     InvalidResponse
+
+ControlTowerException : Exception
+    Kind : ControlTowerErrorKind
 ```
 
-`ControlTowerException` exposes the error kind and preserves the underlying exception where useful.
+The exception message explains the failure and `InnerException` preserves the underlying exception when useful.
 
 ---
 
@@ -168,13 +173,15 @@ ControlTowerErrorKind
 ```text
 Create drones
 → create one Thread per drone
-→ start Threads
+→ start all Threads
 → execute DroneFlight
 → Join all Threads
 → report overall completion
 ```
 
 The no-Join demonstration deliberately omits the waiting step.
+
+A concurrency test may use a test-side event gate/observer to prove that separate drone threads enter the running phase without relying on elapsed time or a particular scheduling order.
 
 ---
 
@@ -184,6 +191,7 @@ The no-Join demonstration deliberately omits the waiting step.
 Create drones
 → create one TCS per drone
 → start drone work
+→ apply selected failure scenario to one drone
 → complete/fault each TCS
 → Task.WhenAll
 → observe success/failure
@@ -195,7 +203,9 @@ Failure contract:
 InvalidOperationException("Simulated drone failure.")
 ```
 
-The affected TCS is faulted with the exception.
+The failure target is selected by the Part B scenario rather than by a permanent `DroneModel` property.
+
+The affected TCS is faulted with the simulated exception.
 
 ---
 
@@ -211,11 +221,19 @@ Create drones
 
 `.Wait()` and `.Result` are prohibited in the Part C async path.
 
+Concurrent progress is proved through observable behaviour plus implementation inspection; exact scheduling order is not a contract.
+
 ---
 
 ## 8. Part D
 
-The local API is hosted at `http://localhost:8080/` by the Part D demonstration. Selecting Part D starts the local control-tower service for the demonstration; no separate service process is required.
+The local service uses:
+
+`http://localhost:8080/`
+
+The service runs in the same demonstration process.
+
+The local API is:
 
 ```text
 GET /route?drone=Navn
@@ -223,25 +241,17 @@ GET /weather
 GET /restrictions
 ```
 
-The server uses asynchronous `HttpListener` request handling.
+The `/route` handler reads the drone query value from the request URL/query data and may inspect `RawUrl` as explicitly requested by the assignment.
 
-The client uses asynchronous `HttpClient` operations.
+The request loop uses asynchronous request handling and does not use blocking `GetContext()` as its normal loop.
 
-### Request flow
+The client uses the asynchronous `HttpClient` APIs and a configured timeout.
 
-```text
-Route ───────────────┐
-Weather ─────────────┼→ final simulation configuration
-Restrictions ────────┘
-                       ↓
-                   DroneFlight
-```
+Independent control-tower calls may run sequentially or concurrently. Both modes must produce equivalent functional results.
 
-Independent requests may be sequential or concurrent. Both modes must produce equivalent functional data.
+HTTP lifecycle logging is part of the final Part D target.
 
-HTTP lifecycle logging is part of the selected final Part D target.
-
-Variable response time is a demonstration capability. Exact duration is not a test oracle.
+Variable response time is controlled for automated tests and may be randomized for manual demonstration. Exact duration is not a correctness oracle.
 
 ---
 
@@ -257,7 +267,9 @@ FlightEvent
 Orchestration / Console
 ```
 
-Concurrency verification combines behaviour tests with required implementation inspection. It must prove meaningful coordination/overlap rather than merely eventual completion.
+Concurrency verification proves meaningful coordination/overlap rather than merely eventual completion.
+
+Console formatting remains a manual observation for the non-deterministic race demonstration.
 
 ---
 
@@ -291,26 +303,26 @@ Concurrency verification combines behaviour tests with required implementation i
 
 | ID | Acceptance criterion | Behaviour / verification |
 |---|---|---|
-| `R1` | `AC-CORE-1` | Project/DOC01 |
-| `R2` | `AC-CORE-2` | B1/VB01 |
-| `R3` | `AC-CORE-3` | B2/B3/VB05/VB06 |
-| `R4` | `AC-CORE-4` | B4/VB07 |
-| `R5` | `AC-CORE-5` | B5/VB08 |
-| `R6` | `AC-A1` | B6/VB09 + I03 |
-| `R7` | `AC-A2` | B7/VB10 + I04 |
+| `R1` | `AC-CORE-1` | Project/DOC01 + M03 |
+| `R2` | `AC-CORE-2` | B1/VB01 + T01/I01 |
+| `R3` | `AC-CORE-3` | B2/B3/VB05/VB06 + T04/T05 |
+| `R4` | `AC-CORE-4` | B4/VB07 + T07/I02 |
+| `R5` | `AC-CORE-5` | B5/VB08 + T08/T13 |
+| `R6` | `AC-A1` | B6/VB09 + T10/I03 |
+| `R7` | `AC-A2` | B7/VB10 + T11/I04 |
 | `R8` | `AC-A3` | B8/VB11 + M01/I05 |
 | `R9` | `AC-A4` | B9/VB12 + M02 |
-| `R10` | `AC-B1` | B10/VB13 + I06 |
-| `R11` | `AC-B2` | B11/VB14 + I07 |
-| `R12` | `AC-B3` | B12/VB15 + I08 |
-| `R13` | `AC-B4` | B13/VB16/T18 |
-| `R14` | `AC-B5` | B14/VB17/T19/T21 |
-| `R15` | `AC-B6` | B15/VB18/T20 + I09 |
-| `R16` | `AC-C1` | B16/VB19 + I10 |
-| `R17` | `AC-C2` | B17/VB20 + I11 |
-| `R18` | `AC-C3` | B18/VB21 + I12/T24 |
-| `R19` | `AC-C4` | B19/VB22 + I13/T25 |
-| `R20` | `AC-C5` | B20/VB23 + I14/T26 |
+| `R10` | `AC-B1` | B10/VB13 + T15/I06 |
+| `R11` | `AC-B2` | B11/VB14 + T16/I07 |
+| `R12` | `AC-B3` | B12/VB15 + T17/T21/I08 |
+| `R13` | `AC-B4` | B13/VB16 + T18 |
+| `R14` | `AC-B5` | B14/VB17 + T19/T21 |
+| `R15` | `AC-B6` | B15/VB18 + T20/I09 |
+| `R16` | `AC-C1` | B16/VB19 + T22/I10 |
+| `R17` | `AC-C2` | B17/VB20 + T23/I11 |
+| `R18` | `AC-C3` | B18/VB21 + T24/I12 |
+| `R19` | `AC-C4` | B19/VB22 + T25/I13 |
+| `R20` | `AC-C5` | B20/VB23 + T26/I14/I15 |
 | `R21` | `AC-C6` | VB24/DOC05 |
 | `R22` | `AC-DLV-1` | M03 |
 | `R23` | `AC-DLV-2` | DOC06 |
@@ -319,9 +331,9 @@ Concurrency verification combines behaviour tests with required implementation i
 | `E1` | `AC-EDGE-1` | VB02/T02 |
 | `E2` | `AC-EDGE-2` | VB03/T03 |
 | `E3` | `AC-EDGE-3` | VB04/T06 |
-| `E4` | `AC-EDGE-4` | VB-D01/HTTP08 |
-| `E5` | `AC-EDGE-5` | Part D failure tests / HTTP05/HTTP06 |
-| `PD1` | `AC-D1` | HTTP01 + I18 + I19 |
+| `E4` | `AC-EDGE-4` | VB-D12/HTTP08 |
+| `E5` | `AC-EDGE-5` | HTTP05/HTTP06/HTTP07 |
+| `PD1` | `AC-D0` | B-D00/HTTP00 + I18/I19 |
 | `PD2` | `AC-D1` | B-D01/HTTP01 |
 | `PD3` | `AC-D2` | B-D02/HTTP02 |
 | `PD4` | `AC-D3` | B-D07/HTTP09 + I16/I17 |
@@ -341,20 +353,33 @@ Concurrency verification combines behaviour tests with required implementation i
 
 | Risk | Response |
 |---|---|
-| Non-deterministic scheduling | Do not assert exact ordering; use completion/overlap semantics and inspection |
+| Non-deterministic scheduling | Do not assert exact scheduling order; use controlled observation and inspection |
 | Timing-based tests become flaky | Never use elapsed duration as the correctness oracle |
-| Task failure semantics misunderstood | Test faulted state plus underlying exception |
+| Task failure semantics are misunderstood | Test faulted state plus underlying exception |
 | Async code becomes blocking | Inspect for `.Wait()`/`.Result` |
-| External HTTP makes tests unstable | Use the local/controllable HTTP boundary |
+| External HTTP makes tests unstable | Use controllable local/test HTTP boundary |
 | Part D grows too far | Protect A–C as MVP |
 | Architecture grows unnecessarily | Add only components with concrete responsibilities |
+| HttpListener environment varies | Document localhost startup and access-denied troubleshooting |
 
 ---
 
 ## 13. Final design status
 
-All core contracts are locked.
+The mandatory core design and selected Part D contracts are locked.
 
-Part D contracts are locked to the final local API and response models above.
+Locked Part D contracts:
 
-No unresolved design decision remains that blocks test-file creation.
+- local prefix `http://localhost:8080/`;
+- `/route?drone=Navn`, `/weather`, `/restrictions`;
+- route/weather/restriction JSON shapes;
+- weather mapping;
+- restriction mapping;
+- `ControlTowerErrorKind` categories;
+- reusable `HttpClient`;
+- asynchronous `HttpListener` request handling;
+- variable response time behaviour;
+- lifecycle logging;
+- sequential/concurrent functional equivalence.
+
+No mandatory design contract remains intentionally open.

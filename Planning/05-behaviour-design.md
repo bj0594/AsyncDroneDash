@@ -33,107 +33,111 @@ For `MaxCheckpoints = 0`, checkpoint `0` is reported and the flight can complete
 
 ---
 
-## 2. Part A
+## 2. Part A — Thread Race
 
-### Behaviours
-
-- `B6` — concurrent Thread execution.
-- `B7` — Join waits for all required drones.
-- `B8` — no-Join demonstration.
-- `B9` — non-deterministic console output.
-
-### Pseudocode
+### Flow
 
 ```text
-Prepare drones
-
-For each drone:
-    Create Thread
-    Thread executes DroneFlight.Run
-
+Create drones
+    ↓
+Create one Thread per drone
+    ↓
 Start all Threads
-
+    ↓
+Drone flights execute concurrently
+    ↓
 Join all Threads
-
+    ↓
 Report overall completion
 ```
 
----
+No-Join demonstration:
 
-## 3. Part B
+```text
+Create and start Threads
+        ↓
+Do not Join
+        ↓
+Main thread continues
+        ↓
+Drone Threads continue independently
+```
 
 ### Behaviours
 
-- `B10` — task-based flight completion.
-- `B11` — one TCS per drone.
-- `B12` — Task.WhenAll coordination.
-- `B13` — deterministic simulated failure.
-- `B14` — failure propagation.
-- `B15` — Task.Exception observation.
-
-### Failure
-
-The selected failure produces:
-
-`InvalidOperationException("Simulated drone failure.")`
-
-### Pseudocode
-
-```text
-Prepare drones
-
-For each drone:
-    Create one TaskCompletionSource
-    Start drone work
-
-On success:
-    Complete the TCS
-
-On selected simulated failure:
-    Fault the TCS
-
-Observe Task.WhenAll
-
-Observe Task.Exception for the failure demonstration
-```
+| ID | Behaviour | Traceability |
+|---|---|---|
+| `B6` | Concurrent Thread execution | `R6 → AC-A1` |
+| `B7` | Joined completion | `R7 → AC-A2` |
+| `B8` | No-Join behaviour | `R8 → AC-A3` |
+| `B9` | Non-deterministic console output | `R9 → AC-A4` |
 
 ---
 
-## 4. Part C
+## 3. Part B — Task + TaskCompletionSource
+
+### Flow
+
+```text
+Create drones
+    ↓
+One TaskCompletionSource per drone
+    ↓
+Start drone work
+    ↓
+Apply selected failure scenario
+    ↓
+Complete or fault each TCS
+    ↓
+Task.WhenAll
+    ↓
+Observe success/failure
+```
 
 ### Behaviours
 
-- `B16` — async flight.
-- `B17` — async checkpoint delay.
-- `B18` — multiple async flights can overlap.
-- `B19` — await Task.WhenAll.
-- `B20` — try/catch failure handling.
+| ID | Behaviour | Traceability |
+|---|---|---|
+| `B10` | Task-based flight completion | `R10 → AC-B1` |
+| `B11` | Individual completion signalling | `R11 → AC-B2` |
+| `B12` | Task.WhenAll coordination | `R12 → AC-B3` |
+| `B13` | Deterministic simulated failure | `R13 → AC-B4` |
+| `B14` | Failure propagation | `R14 → AC-B5` |
+| `B15` | Task.Exception observation | `R15 → AC-B6` |
 
-### Pseudocode
+The selected failure target is one participating drone. Its TCS is faulted with `InvalidOperationException("Simulated drone failure.")` when the failure scenario triggers.
+
+---
+
+## 4. Part C — Async/Await
+
+### Flow
 
 ```text
-Prepare drones
-
-Start async flight for each drone
-
-Each flight:
-    Report Started
-    Report checkpoint 0
-
-    While another checkpoint remains:
-        Await Task.Delay(DelayMs)
-        Advance checkpoint
-        Report checkpoint
-
-    Report Completed
-
-Await Task.WhenAll
-
-If orchestration fails:
-    Catch and report exception
+Create drones
+    ↓
+Start async flights
+    ↓
+await Task.Delay between checkpoints
+    ↓
+Checkpoint progression
+    ↓
+await Task.WhenAll
+    ↓
+try/catch orchestration
 ```
 
-`.Wait()` and `.Result` are not used in the async path.
+The async path must not use `.Wait()` or `.Result`.
+
+### Behaviours
+
+| ID | Behaviour | Traceability |
+|---|---|---|
+| `B16` | Async flight | `R16 → AC-C1` |
+| `B17` | Async checkpoint delay | `R17 → AC-C2` |
+| `B18` | Multiple async flights can overlap | `R18 → AC-C3` |
+| `B19` | Async Task.WhenAll coordination | `R19 → AC-C4` |
+| `B20` | Async failure handling | `R20 → AC-C5` |
 
 ---
 
@@ -142,26 +146,17 @@ If orchestration fails:
 | ID | Behaviour | Traceability |
 |---|---|---|
 | `VB01` | Valid DroneModel configuration is accepted | `R2 → AC-CORE-2 → B1` |
-| `VB05` | `MaxCheckpoints = 0` reports checkpoint 0 | `R3 → AC-CORE-3 → B2` |
+| `VB02` | Negative MaxCheckpoints is rejected | `E1 → AC-EDGE-1 → B2` |
+| `VB03` | Negative DelayMs is rejected | `E2 → AC-EDGE-2 → B4` |
+| `VB04` | Missing/blank name is rejected | `E3 → AC-EDGE-3 → B1` |
+| `VB05` | MaxCheckpoints = 0 reports checkpoint 0 | `R3 → AC-CORE-3 → B2` |
 | `VB06` | Checkpoints progress from 0 to Max in order | `R3 → AC-CORE-3 → B2/B3` |
 | `VB07` | Delay is applied between checkpoint steps | `R4 → AC-CORE-4 → B4` |
 | `VB08` | Successful lifecycle reports start/checkpoints/completion | `R5 → AC-CORE-5 → B5` |
 
 ---
 
-## 6. Edge-case vertical behaviours
-
-| ID | Behaviour | Traceability |
-|---|---|---|
-| `VB02` | Negative `MaxCheckpoints` is rejected | `E1 → AC-EDGE-1 → B2` |
-| `VB03` | Negative `DelayMs` is rejected | `E2 → AC-EDGE-2 → B4` |
-| `VB04` | Missing/blank name is rejected | `E3 → AC-EDGE-3 → B1` |
-| `VB-D12` | Unknown Part D route drone is reported as not found | `E4 → AC-EDGE-4 → B-D01` |
-| `VB-D05` / `VB-D06` | Part D dependency failure/timeout is handled | `E5 → AC-EDGE-5` |
-
----
-
-## 7. Part A vertical behaviours
+## 6. Part A vertical behaviours
 
 | ID | Behaviour | Traceability |
 |---|---|---|
@@ -172,7 +167,7 @@ If orchestration fails:
 
 ---
 
-## 8. Part B vertical behaviours
+## 7. Part B vertical behaviours
 
 | ID | Behaviour | Traceability |
 |---|---|---|
@@ -185,7 +180,7 @@ If orchestration fails:
 
 ---
 
-## 9. Part C vertical behaviours
+## 8. Part C vertical behaviours
 
 | ID | Behaviour | Traceability |
 |---|---|---|
@@ -198,12 +193,22 @@ If orchestration fails:
 
 ---
 
+## 9. Edge-case vertical behaviours
+
+| ID | Behaviour | Traceability |
+|---|---|---|
+| `VB-E04` | Unknown route drone is reported as not found | `E4 → AC-EDGE-4 → B-D01` |
+| `VB-E05` | Control-tower failure/timeout/invalid response is handled | `E5 → AC-EDGE-5` |
+
+---
+
 ## 10. Part D vertical behaviours
 
 Part D is optional in the assignment and active only because it is currently selected as the final project target.
 
 | ID | Behaviour | Traceability |
 |---|---|---|
+| `VB-D00` | Local control-tower service exposes the required endpoints | `PD1 → AC-D0` |
 | `VB-D01` | Retrieve route data | `PD2 → AC-D1` |
 | `VB-D02` | Retrieve weather data | `PD3 → AC-D2` |
 | `VB-D03` | Retrieve restrictions | `PD9 → AC-D8` |
@@ -215,16 +220,17 @@ Part D is optional in the assignment and active only because it is currently sel
 | `VB-D09` | Log HTTP lifecycle | `PD10 → AC-D9` |
 | `VB-D10` | Compare sequential/concurrent HTTP | `PD11 → AC-D10` |
 | `VB-D11` | Variable response time is demonstrable | `PD12 → AC-D11` |
-| `VB-D12` | Unknown route drone is reported as not found | `E4 → AC-EDGE-4 → B-D01` |
+| `VB-D12` | Unknown route drone is reported as not found | `E4 → AC-EDGE-4` |
 
 ### Part D API
-
 
 ```text
 GET /route?drone=Navn
 GET /weather
 GET /restrictions
 ```
+
+The `/route` behaviour includes reading the requested drone from the request URL/query data, with `RawUrl` available as the assignment-specified learning point.
 
 ### Part D data flow
 
@@ -243,21 +249,19 @@ Restrictions ────────┘
 ```text
 Core
 ├── B1–B5
-│   ├── VB01
-│   ├── VB02
-│   ├── VB03
-│   ├── VB04
-│   ├── VB05
-│   ├── VB06
-│   ├── VB07
-│   └── VB08
+│   ├── VB01–VB08
 │
-├── Part A → VB09–VB12
-├── Part B → VB13–VB18
-└── Part C → VB19–VB24
+├── Part A → B6–B9 → VB09–VB12
+├── Part B → B10–B15 → VB13–VB18
+└── Part C → B16–B20 → VB19–VB24
 
-Optional Part D → VB-D01–VB-D11
+Optional Part D
+└── VB-D00–VB-D12
 ```
+
+Parts A–C share the same basic drone-flight problem but use deliberately different execution models.
+
+Part D provides optional control-tower input to the same simulation.
 
 ---
 
@@ -277,21 +281,8 @@ When the basic flight executes
 Then CheckpointReached(0) is observable
 ```
 
-Observation boundary:
+Current observation boundary:
 
 `Action<FlightEvent>`
 
-The test observes the event rather than console formatting.
-
----
-
-## 13. Design status
-
-- [x] Core behaviours defined.
-- [x] Assignment edge cases defined.
-- [x] Part A behaviours defined.
-- [x] Part B behaviours defined.
-- [x] Part C behaviours defined.
-- [x] Part D target behaviours defined.
-- [x] First TDD behaviour identified.
-- [x] All behaviours trace to requirements/acceptance criteria or explicit edge cases.
+The first test verifies the observable event, not console formatting.

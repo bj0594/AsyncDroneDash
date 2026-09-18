@@ -122,25 +122,25 @@ The project shall be stored in a GitHub repository.
 
 ### R24 — README
 
-The repository shall contain a root `README.md` with prerequisites, build/run instructions, testing instructions for each part, and local HTTP startup instructions when a local service is included.
+The repository shall contain a root `README.md` with prerequisites, build/run instructions, testing instructions for each part, and local HTTP startup/troubleshooting instructions when a local service is included.
 
 ### R25 — Reflection
 
-The repository shall contain `reflection.md` with the required observations, short answers, and other relevant thoughts.
+The repository shall contain `reflection.md` with the required observations, short answers, and other relevant thoughts. It shall address the five reflection questions in the assignment and, when Part D is implemented, the sequential-versus-concurrent HTTP observation.
 
 ---
 
 # 3. Assignment edge cases
 
-These are explicitly called out by the assignment, but their exact response is not fully specified there.
+These cases are explicitly called out by the assignment, but their exact response is finalized by the project design.
 
 ### E1 — Negative MaxCheckpoints
 
-The application shall handle a negative `MaxCheckpoints` value according to the project's finalized validation contract.
+The application shall handle a negative `MaxCheckpoints` value according to the finalized validation contract.
 
 ### E2 — Negative DelayMs
 
-The application shall handle a negative `DelayMs` value according to the project's finalized validation contract.
+The application shall handle a negative `DelayMs` value according to the finalized validation contract.
 
 ### E3 — Missing or blank drone name
 
@@ -152,13 +152,13 @@ For Part D route lookup, an unknown drone name shall be handled as not found.
 
 ### E5 — Temporary control-tower failure
 
-The application shall handle a control-tower HTTP failure or timeout according to the finalized Part D error contract when Part D is in scope.
+When Part D is active, HTTP failure, invalid response data, and timeout shall be handled through the finalized control-tower error contract.
 
 ---
 
 # 4. Conditional Part D requirements
 
-Part D is optional in the assignment. This project currently includes the local-service alternative in its final target scope.
+Part D is optional in the assignment. This project has selected the local-service alternative for its final target.
 
 ### PD1 — Local control-tower service
 
@@ -182,7 +182,7 @@ The client shall use one reusable `HttpClient` and asynchronous HTTP APIs.
 
 ### PD5 — Simulation effect
 
-Retrieved control-tower data shall affect the final simulation configuration.
+Retrieved route, weather, and active restriction data shall affect the final simulation configuration.
 
 ### PD6 — HTTP failure handling
 
@@ -198,11 +198,9 @@ The client and local server shall avoid synchronous blocking in the asynchronous
 
 ### PD9 — Restrictions
 
-The project shall provide temporary restriction data through the optional:
+The project shall provide temporary restriction data through:
 
 `GET /restrictions`
-
-endpoint.
 
 ### PD10 — HTTP lifecycle logging
 
@@ -210,7 +208,7 @@ HTTP request start and completion/failure shall be observable in the final Part 
 
 ### PD11 — Sequential versus concurrent HTTP calls
 
-The project shall support comparison of sequential and concurrent control-tower requests using equivalent functional results.
+The project shall support comparison of sequential and concurrent control-tower requests using equivalent functional results and an observable comparison of their execution.
 
 ### PD12 — Variable response time
 

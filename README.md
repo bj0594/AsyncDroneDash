@@ -7,13 +7,13 @@ Async Drone Dash is a C# console application that demonstrates three execution m
 - Part C — `async`/`await`
 - Part D — optional local control-tower HTTP service with `HttpClient`
 
-The project deliberately keeps the simulation small so that concurrency, task coordination, failure propagation, and asynchronous HTTP behaviour remain visible.
+The project keeps the simulation small so that concurrency, task coordination, failure propagation, and asynchronous HTTP behaviour remain visible.
 
 ## Scope
 
 Parts A–C form the mandatory MVP.
 
-Part D is optional in the assignment but is currently included in this project's final target scope.
+Part D is optional in the assignment but is included in this project's final target scope.
 
 Bonus features such as cancellation, retry/backoff, `IAsyncEnumerable`, and drone registration are not required.
 
@@ -44,9 +44,7 @@ Async Drone Dash/
 └── reflection.md
 ```
 
-The repository contains one README at the repository root.
-
-`TestPlan.md` belongs to the test project because it documents the test project's verification plan.
+There is one README, in the repository root. The test verification plan is kept with the test project as `TestPlan.md`.
 
 ## Build
 
@@ -82,7 +80,7 @@ Part A demonstrates:
 - a deliberate no-`Join` demonstration;
 - non-deterministic/interleaved console output.
 
-Manual verification should compare the normal and no-Join runs and observe how console output can interleave.
+Manual verification compares the normal and no-Join runs and observes how console output can interleave.
 
 ## Part B — Task + TaskCompletionSource
 
@@ -116,7 +114,7 @@ The async path must not use `.Wait()` or `.Result`.
 
 ## Part D — Local Control Tower
 
-The project uses the local `HttpListener` option supplied by the assignment.
+The project uses the local `HttpListener` option supplied by the assignment because it is explicitly offered as a learning alternative.
 
 The client uses one reusable `HttpClient` and asynchronous HTTP APIs.
 
@@ -128,18 +126,49 @@ GET /weather
 GET /restrictions
 ```
 
+The route handler reads the requested drone name from the request URL/query data, including the `RawUrl` learning point from the assignment.
+
 Response models and mappings are documented in `Planning/03-domain-and-rules.md`.
 
-The local service can vary response time to simulate slow network conditions.
+The local service uses `http://localhost:8080/` and starts inside the demonstration application process.
 
 ### Starting Part D
 
-Selecting Part D starts the local control-tower service automatically at `http://localhost:8080/`; no separate service process is required.
+Select Part D from the application menu. The application starts the local control tower automatically and then consumes it through `HttpClient`.
+
+On Windows, `HttpListener` uses the HTTP.sys infrastructure. If `HttpListener.Start()` reports `Access Denied`, the URL may need a URL ACL reservation. Run an elevated terminal and reserve the selected URL for the current Windows user, for example:
+
+```powershell
+netsh http add urlacl url=http://localhost:8080/ user="$env:USERDOMAIN\$env:USERNAME" listen=yes
+```
+
+Check existing reservations with:
+
+```powershell
+netsh http show urlacl url=http://localhost:8080/
+```
+
+Remove the reservation later with:
+
+```powershell
+netsh http delete urlacl url=http://localhost:8080/
+```
+
+The project does not use HTTPS for the local demonstration.
 
 ### Testing Part D
 
-Part D verification uses a controllable HTTP boundary for automated tests. Manual execution demonstrates the real local service, HTTP logging, and sequential versus concurrent requests.
+Automated HTTP tests use a controllable HTTP boundary so they do not depend on a live external network service.
+
+Manual Part D execution demonstrates:
+
+- route/weather/restriction data retrieval;
+- request lifecycle logging;
+- variable response time;
+- sequential versus concurrent requests and their relative execution.
+
+The relative execution time is an observation for the reflection, not a correctness threshold for automated tests.
 
 ## Reflection
 
-`reflection.md` is completed after implementation and contains the required observations and comparisons, especially the differences between Thread/Join, Task/TCS, and async/await.
+`reflection.md` is completed after implementation and answers the five reflection questions from the assignment, including the differences between Thread/Join, Task/TCS, and async/await. For Part D it also records what was learned from asynchronous HTTP, timeout/error handling, and sequential versus concurrent calls.
