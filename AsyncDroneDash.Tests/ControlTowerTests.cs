@@ -11,6 +11,7 @@ public class ControlTowerTests
     [Theory]
     [InlineData("Alpha", 3)]
     [InlineData("Beta", 5)]
+    [InlineData("Gamma", 2)]
     public async Task ControlTower_ShouldReturnRouteData(
         string droneName,
         int expectedMaxCheckpoints)
@@ -122,6 +123,50 @@ public class ControlTowerTests
     }
 
     [Fact]
+    public async Task ControlTower_RestrictionEqualToRouteMaximum_ShouldPreserveRouteMaximum()
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/route" =>
+                    JsonResponse("""{"maxCheckpoints":3}"""),
+
+                "/weather" =>
+                    JsonResponse("""{"condition":"clear"}"""),
+
+                "/restrictions" =>
+                    JsonResponse("""{"maxCheckpoints":3}"""),
+
+                _ =>
+                    new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        });
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+        var orchestrator = new ControlTowerOrchestrator(client);
+
+        var drone = new DroneModel
+        {
+            Name = "Alpha",
+            MaxCheckpoints = 10,
+            DelayMs = 100
+        };
+
+        // Act
+        var result = await orchestrator.LoadSequentialAsync(drone);
+
+        // Assert
+        Assert.Equal(3, result.MaxCheckpoints);
+    }
+
+    [Fact]
     public async Task ControlTower_Data_ShouldProduceFinalSimulationConfiguration()
     {
         // Arrange
@@ -165,6 +210,31 @@ public class ControlTowerTests
         Assert.Equal("Alpha", result.Name);
         Assert.Equal(2, result.MaxCheckpoints);
         Assert.Equal(600, result.DelayMs);
+    }
+
+    [Fact]
+    public async Task ControlTower_ConnectionFailure_ShouldProduceRequestFailed()
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(
+            (_, _) =>
+                throw new HttpRequestException("Simulated connection failure."));
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<ControlTowerException>(
+            () => client.GetWeatherAsync());
+
+        // Assert
+        Assert.Equal(
+            ControlTowerErrorKind.RequestFailed,
+            exception.Kind);
     }
 
     [Fact]
@@ -228,6 +298,7 @@ public class ControlTowerTests
     [InlineData("")]
     [InlineData("""{"condition":}""")]
     [InlineData("""{"wrongProperty":"clear"}""")]
+    [InlineData("""{"condition":"hurricane"}""")]
     public async Task ControlTower_InvalidWeatherResponse_ShouldProduceInvalidResponse(
         string responseBody)
     {
@@ -429,15 +500,21 @@ public class ControlTowerTests
 
         var concurrentTask = concurrentOrchestrator.LoadConcurrentAsync(drone);
 
-        await Task.WhenAll(
-            routeStarted.Task,
-            weatherStarted.Task,
-            restrictionsStarted.Task);
+        try
+        {
+            await Task.WhenAll(
+                routeStarted.Task,
+                weatherStarted.Task,
+                restrictionsStarted.Task)
+                .WaitAsync(TimeSpan.FromSeconds(1));
 
-        // Assert
-        Assert.False(concurrentTask.IsCompleted);
-
-        releaseRequests.Set();
+            // Assert
+            Assert.False(concurrentTask.IsCompleted);
+        }
+        finally
+        {
+            releaseRequests.Set();
+        }
 
         var concurrent = await concurrentTask;
 

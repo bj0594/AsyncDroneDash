@@ -102,16 +102,22 @@ public class ThreadRaceTests
         // Act
         var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
 
-        // Assert
-        Assert.True(
-            allStarted.Wait(TimeSpan.FromSeconds(1)),
-            "Expected all participating drone threads to reach the running phase.");
+        try
+        {
+            // Assert
+            Assert.True(
+                allStarted.Wait(TimeSpan.FromSeconds(1)),
+                "Expected all participating drone threads to reach the running phase.");
 
-        Assert.False(
-            raceTask.IsCompleted,
-            "RunWithJoin must not return while participating threads are still running.");
+            Assert.False(
+                raceTask.IsCompleted,
+                "RunWithJoin must not return while participating threads are still running.");
+        }
+        finally
+        {
+            runningGate.Set();
+        }
 
-        runningGate.Set();
         raceTask.Wait();
 
         List<FlightEvent> capturedEvents;
@@ -238,14 +244,20 @@ public class ThreadRaceTests
         // Act
         var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
 
-        // Assert
-        Assert.True(
-            bothStarted.Wait(TimeSpan.FromSeconds(1)),
-            "Expected all participating drones to enter the running phase before progress continued.");
+        try
+        {
+            // Assert
+            Assert.True(
+                bothStarted.Wait(TimeSpan.FromSeconds(1)),
+                "Expected all participating drones to enter the running phase before progress continued.");
 
-        Assert.False(raceTask.IsCompleted);
+            Assert.False(raceTask.IsCompleted);
+        }
+        finally
+        {
+            runningGate.Set();
+        }
 
-        runningGate.Set();
         raceTask.Wait();
 
         Assert.Equal(drones.Length, Volatile.Read(ref startedDrones));

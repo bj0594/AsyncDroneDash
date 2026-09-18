@@ -172,9 +172,9 @@ A valid drone uses `DelayMs = 0`.
 
 Oracle:
 
-The flight completes successfully and reports the expected lifecycle/checkpoint events.
+A valid flight with `DelayMs = 0` completes without throwing. No elapsed-time assertion is used.
 
-This test covers the valid zero-delay boundary. `I02` separately verifies the required delay mechanism.
+This test covers only the valid zero-delay boundary. `T08` verifies lifecycle behaviour, and `I02` separately verifies the required delay mechanism.
 
 ---
 
@@ -365,7 +365,7 @@ One selected failure drone reaches checkpoint `1`.
 
 Oracle:
 
-A `Faulted` `FlightEvent` identifies the selected drone through `FlightEvent.DroneName` and carries:
+A `Faulted` `FlightEvent` identifies the selected drone through `FlightEvent.DroneName` and carries the relevant exception information:
 
 `InvalidOperationException("Simulated drone failure.")`
 
@@ -407,7 +407,7 @@ Component / Fact.
 
 Scenario:
 
-One selected drone faults after checkpoint `1` while another drone has not yet completed.
+One selected drone faults after checkpoint `1` while another participating drone is allowed to reach `Completed`.
 
 Oracle:
 
@@ -466,11 +466,9 @@ Component / Fact.
 
 Oracle:
 
-At least two async flights make meaningful overlapping progress.
+At least two async flights reach checkpoint `0` before either flight can continue past that checkpoint.
 
-Captured events include `FlightEvent.DroneName`, allowing the overlapping progress of individual drones to be distinguished.
-
-The test must not require a particular scheduling order.
+Captured events include `FlightEvent.DroneName`, allowing the progress of individual drones to be distinguished. The test uses controlled synchronization rather than elapsed-time thresholds and does not require a particular scheduling order.
 
 ---
 
@@ -647,7 +645,7 @@ HTTP boundary/client / Fact.
 
 Oracle:
 
-Restriction response maps correctly, including the no-restriction case.
+Restriction response maps correctly, including the no-restriction case. The relevant boundary where the restriction equals the route maximum is also covered.
 
 ### HTTP04 — ControlTower_Data_ShouldProduceFinalSimulationConfiguration
 
@@ -673,7 +671,7 @@ HTTP boundary/client / Fact.
 
 Oracle:
 
-Non-success HTTP responses other than `404`, or connection-level failures, map to `ControlTowerErrorKind.RequestFailed`.
+Non-success HTTP responses other than `404`, and connection-level `HttpRequestException` failures, map to `ControlTowerErrorKind.RequestFailed`.
 
 ### HTTP06 — ControlTower_Timeout_ShouldProduceTimeout
 
@@ -685,7 +683,7 @@ Oracle:
 
 A request that exceeds the configured client timeout maps to `ControlTowerErrorKind.Timeout`.
 
-The automated test uses a controlled test HTTP handler/delay rather than waiting for the production timeout duration.
+The automated test uses a controlled test HTTP handler that intentionally waits beyond the configured client timeout; the test does not wait for the full handler delay.
 
 ### HTTP07 — ControlTower_InvalidResponse_ShouldProduceInvalidResponse
 
@@ -917,28 +915,28 @@ Examples:
 
 ## 16. Contract and test-design review
 
-- [ ] Every `R1–R25` has a verification path.
-- [ ] Every active `E1–E5` edge case has verification.
-- [ ] Every active `PD1–PD12` requirement has verification.
-- [ ] Every mandatory acceptance criterion has verification.
-- [ ] Every mandatory vertical behaviour has verification.
-- [ ] Relevant boundaries and equivalence partitions are covered.
-- [ ] Relevant state transitions are covered.
-- [ ] Relevant dependency failures are covered.
-- [ ] Concurrency tests prove overlap/coordination rather than eventual completion only.
-- [ ] Task failure tests verify faulted state and exception information.
-- [ ] Flight events identify their originating drone.
-- [ ] Part D automated HTTP tests use controllable dependencies; `HTTP00` is verified separately as a smoke/integration check.
-- [ ] Final simulation configuration is asserted directly rather than reconstructed by tests.
-- [ ] Timing is never an exact correctness oracle.
-- [ ] Every automated test has a clear oracle.
-- [ ] Required implementation mechanisms have inspection items.
-- [ ] Manual-only assignment demonstrations are explicitly identified.
-- [ ] Test levels are appropriate.
-- [ ] Fact/Theory choices are justified.
-- [ ] Test names express behaviour, scenario and expected result.
-- [ ] Duplicate/redundant tests are removed.
-- [ ] No mandatory test depends on an unresolved contract.
+- [x] Every `R1–R25` has a verification path.
+- [x] Every active `E1–E5` edge case has verification.
+- [x] Every active `PD1–PD12` requirement has verification.
+- [x] Every mandatory acceptance criterion has verification.
+- [x] Every mandatory vertical behaviour has verification.
+- [x] Relevant boundaries and equivalence partitions are covered.
+- [x] Relevant state transitions are covered.
+- [x] Relevant dependency failures are covered.
+- [x] Concurrency tests prove overlap/coordination rather than eventual completion only.
+- [x] Task failure tests verify faulted state and exception information.
+- [x] Flight events identify their originating drone.
+- [x] Part D automated HTTP tests use controllable dependencies; `HTTP00` is verified separately as a smoke/integration check.
+- [x] Final simulation configuration is asserted directly rather than reconstructed by tests.
+- [x] Timing is never an exact correctness oracle.
+- [x] Every automated test has a clear oracle.
+- [x] Required implementation mechanisms have inspection items.
+- [x] Manual-only assignment demonstrations are explicitly identified.
+- [x] Test levels are appropriate.
+- [x] Fact/Theory choices are justified.
+- [x] Test names express behaviour, scenario and expected result.
+- [x] Duplicate/redundant tests are removed.
+- [x] No mandatory test depends on an unresolved contract.
 
 ---
 
@@ -990,11 +988,14 @@ Observation boundary:
 
 ## 19. Status
 
-Planning/test design is being finalized against the locked public API. Production implementation has intentionally not started.
+Planning and test design were finalized against the locked public API, and the production implementation phase has now been completed.
 
-The next TDD-stage actions are:
+The remaining project-stage actions are:
 
-- align each existing test file with the locked design contract;
-- complete the Definition of Ready consistency check;
-- begin production implementation only after the test contracts are stable;
-- run Red → Green → Refactor → Final verification.
+- run the final verification suite;
+- complete the local HTTP smoke/integration verification;
+- complete `reflection.md` and final delivery documentation.
+
+The TDD sequence used for implementation was:
+
+    Red → Green → Refactor → Final verification

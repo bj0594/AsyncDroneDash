@@ -57,13 +57,14 @@ public class AsyncFlightTests
             DelayMs = 0
         };
 
+        alpha.DelayMs = 10;
+        beta.DelayMs = 10;
+
         var events = new List<FlightEvent>();
-        var alphaStarted = new TaskCompletionSource<bool>(
+        using var firstCheckpointGate = new ManualResetEventSlim(false);
+        var bothFirstCheckpoints = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        var betaStarted = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        var allowProgress = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstCheckpointCount = 0;
 
         Action<FlightEvent> report = flightEvent =>
         {
@@ -72,35 +73,18 @@ public class AsyncFlightTests
                 events.Add(flightEvent);
             }
 
-            if (flightEvent.DroneName == "Alpha" &&
-                flightEvent.Type == FlightEventType.Started)
+            if (flightEvent.Type == FlightEventType.CheckpointReached &&
+                flightEvent.Checkpoint == 0)
             {
-                alphaStarted.TrySetResult(true);
-            }
+                if (Interlocked.Increment(ref firstCheckpointCount) == 2)
+                {
+                    bothFirstCheckpoints.TrySetResult(true);
+                    firstCheckpointGate.Set();
+                }
 
-            if (flightEvent.DroneName == "Beta" &&
-                flightEvent.Type == FlightEventType.Started)
-            {
-                betaStarted.TrySetResult(true);
-            }
-
-            if (flightEvent.Type == FlightEventType.Started)
-            {
-                _ = WaitForBothDronesAsync(
-                    alphaStarted.Task,
-                    betaStarted.Task,
-                    allowProgress);
+                firstCheckpointGate.Wait();
             }
         };
-
-        async Task WaitForBothDronesAsync(
-            Task alphaTask,
-            Task betaTask,
-            TaskCompletionSource<bool> gate)
-        {
-            await Task.WhenAll(alphaTask, betaTask);
-            gate.TrySetResult(true);
-        }
 
         // Act
         var task = AsyncFlightRunner.RunAsync(
@@ -108,7 +92,16 @@ public class AsyncFlightTests
             failureDroneName: null,
             report);
 
-        await allowProgress.Task;
+        try
+        {
+            await bothFirstCheckpoints.Task.WaitAsync(
+                TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            firstCheckpointGate.Set();
+        }
+
         await task;
 
         // Assert

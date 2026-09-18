@@ -156,16 +156,12 @@ public class DroneModelAndFlightTests
             DelayMs = 0
         };
 
-        var events = new List<FlightEvent>();
-        Action<FlightEvent> onEvent = events.Add;
-
         // Act
-        new DroneFlight().Run(drone, onEvent);
+        var exception = Record.Exception(
+            () => new DroneFlight().Run(drone, _ => { }));
 
         // Assert
-        Assert.NotEmpty(events);
-        Assert.Equal(FlightEventType.Started, events.First().Type);
-        Assert.Equal(FlightEventType.Completed, events.Last().Type);
+        Assert.Null(exception);
     }
 
     [Fact]

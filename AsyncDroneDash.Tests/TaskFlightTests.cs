@@ -161,6 +161,13 @@ public class TaskFlightTests
         Assert.Equal(
             "Alpha",
             faultedEvent.DroneName);
+
+        var faultException = Assert.IsType<InvalidOperationException>(
+            faultedEvent.Exception);
+
+        Assert.Equal(
+            "Simulated drone failure.",
+            faultException.Message);
     }
 
     [Fact]
