@@ -1,189 +1,329 @@
 # Async Drone Dash — Requirements
 
-## Project objective
+## 1. Project objective
 
 Async Drone Dash is a C# console application that simulates multiple delivery drones flying routes.
 
-The project demonstrates and compares three approaches to concurrent/asynchronous execution:
+The project demonstrates and compares:
 
 1. `Thread` + `Join`
 2. `Task` + `TaskCompletionSource`
 3. `async`/`await`
 
-Part D is an optional extension involving asynchronous HTTP communication with a control-tower service.
+Part D is optional in the assignment and concerns asynchronous HTTP communication with a control-tower service.
 
-The simulation is intentionally simple. The main purpose is to make the differences between the execution models observable and understandable.
-
----
-
-## Functional requirements
-
-### Core simulator
-
-- [MUST] Simulate multiple delivery drones flying routes.
-- [MUST] Each drone has `Name`, `MaxCheckpoints`, and `DelayMs`.
-- [MUST] Each drone progresses through its checkpoints.
-- [MUST] The configured delay is applied between checkpoint steps.
-- [MUST] Drone progress is reported.
-
-### Part A — Thread Race
-
-- [MUST] Start at least two drones concurrently.
-- [MUST] Run each drone on its own `Thread`.
-- [MUST] Count each drone from `0` to `MaxCheckpoints`.
-- [MUST] Log drone start.
-- [MUST] Log each checkpoint reached.
-- [MUST] Log drone completion.
-- [MUST] Use `Join` to wait for all drone threads before reporting overall completion.
-- [MUST] Demonstrate the effect of removing `Join`.
-- [MUST] Demonstrate that concurrent console output can be interleaved or non-deterministic.
-
-### Part B — Task + TaskCompletionSource
-
-- [MUST] Represent drone flights using `Task`.
-- [MUST] Use one `TaskCompletionSource` per drone.
-- [MUST] Start at least two drones.
-- [MUST] Use `Task.WhenAll` to coordinate the drone tasks.
-- [MUST] Demonstrate at least one failure scenario.
-- [MUST] Propagate the failure through the task/TCS model.
-- [MUST] Demonstrate task-based exception handling, including `Task.Exception`.
-
-### Part C — Async/Await
-
-- [MUST] Implement drone flight as an `async` method.
-- [MUST] Use `await Task.Delay` for checkpoint delays.
-- [MUST] Use `await Task.WhenAll` to coordinate multiple drone flights.
-- [MUST] Use `try/catch` around orchestration for error reporting.
-- [MUST] Allow comparison with Part B regarding boilerplate, complexity, readability, and maintainability.
-
-### Part D — Control Tower API
-
-Part D is explicitly optional.
-
-- [MAY] Consume route information from an HTTP service.
-- [MAY] Consume weather information from an HTTP service.
-- [MAY] Consume temporary restrictions from an HTTP service.
-- [MAY] Use an external demo API or a local HTTP service.
-- [MAY] Use retrieved data to affect `DelayMs` or `MaxCheckpoints`.
-- [MAY] Handle HTTP failures and timeouts with appropriate error messages.
-- [MAY] Log HTTP request start and completion.
-- [MAY] Compare concurrent and sequential HTTP calls.
+The core simulation is intentionally simple so that differences between the execution models remain observable.
 
 ---
 
-## Non-functional requirements
+# 2. Mandatory functional requirements
 
-The assignment does not state explicit non-functional requirements.
+## Core simulator
 
-The following are learning/observation goals rather than additional system requirements:
+### R1 — Runnable console application
 
-- concurrency should be observable in the output;
-- differences between execution models should be understandable;
-- failures should be observable;
-- the execution models should be comparable;
-- concurrent console output should make overlap visible.
+The project shall provide a runnable C# console application.
 
----
+### R2 — Drone model
 
-## Technical requirements
+Each drone shall have:
 
-- [MUST] Runnable C# console application.
-- [MUST] Part A uses `Thread`.
-- [MUST] Part A uses `Thread.Join`.
-- [MUST] Part B uses `Task`.
-- [MUST] Part B uses `TaskCompletionSource`.
-- [MUST] Part B uses `Task.WhenAll`.
-- [MUST] Part B demonstrates task exception propagation.
-- [MUST] Part C uses `async`/`await`.
-- [MUST] Part C uses `Task.Delay`.
-- [MUST] Part C uses `Task.WhenAll`.
-- [MUST] Part C uses `try/catch`.
-- [MUST] `DroneModel` contains `Name : string`, `MaxCheckpoints : int`, and `DelayMs : int`, unless a justified adaptation is made.
-- [MAY] Part D may use `HttpClient`.
-- [MAY] A local HTTP alternative may use `HttpListener`.
-- [MAY] HTTP calls may use async APIs such as `GetAsync` or `ReadFromJsonAsync`.
+- `Name : string`
+- `MaxCheckpoints : int`
+- `DelayMs : int`
 
----
+### R3 — Checkpoint progression
 
-## Delivery requirements
+Each drone shall progress from checkpoint `0` through its configured `MaxCheckpoints`.
 
-- [MUST] GitHub repository.
-- [MUST] Runnable console application.
-- [MUST] Menu for Parts A–D.
-- [MUST] `reflection.md` containing observations, short answers, and other relevant thoughts.
-- [MUST] `README.md` containing running instructions.
-- [MUST] `README.md` explains how each part is tested.
-- [MUST] `README.md` explains how to start a local HTTP service if one is included.
+### R4 — Checkpoint delay
+
+The configured `DelayMs` shall be applied between checkpoint steps.
+
+### R5 — Progress reporting
+
+The application shall report:
+
+- drone start;
+- each checkpoint reached;
+- drone completion.
 
 ---
 
-## Requirement validation
+## Part A — Thread Race
 
-The mandatory Parts A–C requirements are sufficiently clear to continue planning.
+### R6 — Concurrent Thread execution
 
-No direct conflict has been identified among the mandatory Parts A–C requirements.
+The application shall start at least two drones concurrently, with each drone running on its own `Thread`.
 
-The following areas remain open because the assignment does not define the exact behaviour:
+### R7 — Join
 
-- handling of negative `DelayMs`;
-- handling of negative `MaxCheckpoints`;
-- meaning and handling of missing/unknown drone names;
-- exact Part B failure scenario;
-- exact behaviour of the A–D menu when Part D is not implemented;
-- exact Part D design.
+The normal Part A run shall use `Join` to wait for all required drone threads before reporting that all drones are finished.
 
-The requirements are generally verifiable through a combination of automated tests, manual observation, and implementation inspection. Exact thread scheduling and console ordering are not deterministic contracts.
+### R8 — No-Join demonstration
 
----
+The application shall demonstrate the effect of removing `Join`.
 
-## Clarifications and assumptions
+### R9 — Non-deterministic concurrent output
 
-### Checkpoint range
-
-“Count from `0` to `MaxCheckpoints`” is interpreted as an inclusive range.
-
-Example:
-
-`MaxCheckpoints = 3` → `0 → 1 → 2 → 3`
-
-### Delay placement
-
-“Delay between steps” is interpreted as a delay between consecutive checkpoints.
-
-There is no required delay before checkpoint `0` or after the final checkpoint.
-
-### Part B failure
-
-The failure used for the Part B demonstration should be deterministic so that it can be reproduced and tested. The exact trigger is still open.
-
-### Part D
-
-Part D is deferred until the MVP for Parts A–C is working.
+The application shall demonstrate that concurrent console output can become interleaved or otherwise non-deterministic.
 
 ---
 
-## Technical uncertainty
+## Part B — Task + TaskCompletionSource
 
-The following may require official documentation or a small spike before the related design is finalized:
+### R10 — Task-based drone flights
 
-- `TaskCompletionSource` completion and fault behaviour;
-- `Task.WhenAll` failure behaviour;
-- `Task.Exception` observation;
-- exception propagation through `await Task.WhenAll`;
-- deterministic testing of concurrent behaviour;
-- separating testable output behaviour from visual console observation.
+Drone flights shall be represented using `Task`.
 
-Any research decision that changes the design should be recorded in the relevant planning file.
+### R11 — One TaskCompletionSource per drone
+
+Each participating drone shall have one `TaskCompletionSource` representing its completion or failure.
+
+### R12 — Task.WhenAll coordination
+
+At least two drone tasks shall be coordinated using `Task.WhenAll`.
+
+### R13 — Failure scenario
+
+At least one drone-flight failure scenario shall be demonstrated.
+
+### R14 — Failure propagation
+
+The failure shall propagate through the TCS/Task model and reach the orchestration level.
+
+### R15 — Task.Exception
+
+The failure demonstration shall include observation of task exception information through `Task.Exception`.
 
 ---
+
+## Part C — Async/Await
+
+### R16 — Async drone flight
+
+Drone flight shall be implemented as an asynchronous method.
+
+### R17 — Async checkpoint delay
+
+Checkpoint delays shall use `await Task.Delay`.
+
+### R18 — Multiple async flights
+
+Multiple drone flights shall be able to progress concurrently.
+
+### R19 — Async Task.WhenAll
+
+Multiple async flights shall be coordinated using `await Task.WhenAll`.
+
+### R20 — Async error handling
+
+The orchestration shall use `try/catch` for async flight failures.
+
+### R21 — Comparison with Part B
+
+The project shall provide a meaningful comparison between Part B and Part C regarding:
+
+- boilerplate;
+- complexity;
+- readability;
+- maintainability.
+
+---
+
+# 3. Delivery requirements
+
+### R22 — Menu
+
+The application shall provide a menu giving access to Parts A–D.
+
+### R23 — GitHub repository
+
+The project shall be stored in a GitHub repository.
+
+### R24 — README
+
+The repository shall contain `README.md` with:
+
+- prerequisites;
+- build/run instructions;
+- instructions for testing each part;
+- instructions for starting a local HTTP service if one is included.
+
+### R25 — Reflection
+
+The repository shall contain `reflection.md` with the required observations, short answers, and other relevant thoughts.
+
+---
+
+# 4. Conditional Part D requirements
+
+Part D is optional in the assignment.
+
+The following requirements become active only if Part D is included in the final project scope.
+
+### PD1 — Control-tower service
+
+The selected Part D implementation shall provide control-tower data through HTTP.
+
+The assignment permits either:
+
+- an external demo API; or
+- a self-hosted local `HttpListener` service.
+
+The project currently targets the local-service alternative.
+
+### PD2 — Route data
+
+The control tower shall provide route information that can affect the simulation.
+
+### PD3 — Weather data
+
+The control tower shall provide weather information that can affect the simulation.
+
+### PD4 — Asynchronous HTTP consumption
+
+The client shall consume the control-tower service asynchronously using `HttpClient` and appropriate asynchronous APIs.
+
+### PD5 — Simulation effect
+
+Retrieved control-tower data shall affect the simulation, such as `DelayMs` or `MaxCheckpoints`.
+
+### PD6 — HTTP failure handling
+
+The application shall handle network/HTTP failures with appropriate error handling.
+
+### PD7 — HTTP timeout handling
+
+The application shall handle request timeouts with appropriate error handling.
+
+### PD8 — Non-blocking HTTP flow
+
+The HTTP implementation shall not introduce synchronous blocking into the asynchronous request flow.
+
+---
+
+# 5. Additional Part D capabilities from the assignment
+
+These are optional capabilities within the optional Part D.
+
+### PD9 — Temporary restrictions
+
+The control tower may provide temporary restriction data that affects the simulation.
+
+### PD10 — HTTP lifecycle logging
+
+The application may log request start and completion/failure so overlapping requests can be observed.
+
+### PD11 — Sequential versus concurrent HTTP comparison
+
+The project may compare sequential and concurrent control-tower requests.
+
+### PD12 — Variable response time
+
+The local-service alternative may introduce variable response time to simulate slow network conditions.
+
+### PD13 — Drone registration
+
+A bonus implementation may provide an endpoint for registering a drone before flight.
+
+These capabilities are not required for the mandatory assignment and are not prerequisites for MVP completion.
+
+---
+
+# 6. Bonus functionality
+
+The following are explicitly optional extras from the assignment:
+
+- `CancellationToken` support for cancelling drones;
+- retry/backoff around HTTP calls;
+- `IAsyncEnumerable` for streaming drone progress.
+
+They are not required for the project to be considered complete.
+
+---
+
+# 7. Explicit edge cases from the assignment
+
+The assignment specifically calls for consideration of:
+
+- negative `DelayMs`;
+- negative `MaxCheckpoints`;
+- unidentified/missing drone name;
+- weather/API failure;
+- timeout;
+- cancellation as a bonus.
+
+The assignment does not define the exact result for every edge case.
+
+Concrete validation and exception contracts are therefore defined in the later domain/design documents before dependent tests are finalized.
+
+---
+
+# 8. Technical requirements
+
+The following implementation mechanisms are explicitly required by the mandatory Parts A–C:
+
+- `Thread`
+- `Thread.Join`
+- `Task`
+- `TaskCompletionSource`
+- `Task.WhenAll`
+- `async`/`await`
+- `Task.Delay`
+- `try/catch`
+
+The implementation must not replace these required mechanisms with unrelated alternatives.
+
+For Part D, `HttpClient` and asynchronous HTTP APIs are required only when Part D is included.
+
+---
+
+# 9. Best-practice guidance from the assignment
+
+These are implementation guidance rather than separate functional requirements:
+
+- Do not mix synchronous blocking such as `.Result` or `.Wait()` into async flow.
+- Propagate asynchronous operations upward.
+- Use `Task.WhenAll` for independent operations.
+- Log enough information to make overlap visible.
+- Separate orchestration from the actual drone work.
+- Keep the implementation proportional to the assignment.
+
+---
+
+# 10. Requirement ownership
+
+The requirement IDs in this document are the authoritative requirement IDs for the project.
+
+Mandatory requirements:
+
+`R1–R25`
+
+Conditional Part D requirements:
+
+`PD1–PD13`
+
+Bonus functionality is deliberately outside the mandatory requirement chain.
+
+Later planning documents must trace requirements to acceptance criteria, behaviours, and verification without changing what the requirement itself means.
+
+---
+
+# 11. Status
+
+## Mandatory requirements
+
+`R1–R25` extracted and identified.
+
+## Part D
+
+`PD1–PD13` identified as conditional/optional.
+
+## Bonus
+
+Cancellation, retry/backoff and `IAsyncEnumerable` remain optional.
 
 ## Open decisions
 
-| Decision | Status |
-|---|---|
-| Negative `DelayMs` handling | TBD |
-| Negative `MaxCheckpoints` handling | TBD |
-| Missing/unknown drone handling | TBD |
-| Part B failure trigger | TBD |
-| Part D implementation | Deferred |
-| Part D menu behaviour when unimplemented | TBD |
+Concrete validation, exception, HTTP-response, and simulation-mapping contracts are maintained in the later planning/design documents.
