@@ -190,7 +190,7 @@ The event stream contains:
 
 `Started → all checkpoints → Completed`.
 
-Each event is associated with the drone that produced it through `FlightEvent.DroneName`.
+Each event is associated with the drone that produced it through `FlightEvent.DroneName`. `Started` and `Completed` have no checkpoint or exception, and checkpoint events have no exception.
 
 ---
 
@@ -349,7 +349,7 @@ Component / Fact.
 
 Oracle:
 
-Combined completion follows all participating tasks.
+Combined completion follows all participating tasks. The scenario uses controlled synchronization to hold one participating task at completion and verify that the combined task remains incomplete until it is released.
 
 ---
 
@@ -361,7 +361,7 @@ Component / Fact.
 
 Scenario:
 
-One selected failure drone reaches checkpoint `1`.
+One selected failure drone reaches checkpoint `1` and immediately after that produces a `Faulted` `FlightEvent`.
 
 Oracle:
 
@@ -472,7 +472,7 @@ Captured events include `FlightEvent.DroneName`, allowing the progress of indivi
 
 ---
 
-### T25 — AsyncFlight_ShouldAwaitTaskWhenAll
+### T25 — AsyncFlight_MultipleDrones_ShouldCompleteAfterAllFlights
 
 `R19 → AC-C4 → VB25`
 
@@ -480,7 +480,7 @@ Component / Fact.
 
 Oracle:
 
-Overall completion follows all required async flights.
+Overall completion follows all required async flights. The scenario uses controlled synchronization to hold one participating flight at completion and verify that the overall task remains incomplete until it is released.
 
 ---
 
@@ -492,13 +492,13 @@ Component / Fact.
 
 Scenario:
 
-The selected failure drone reports checkpoint `1` and then produces:
+The selected failure drone reports checkpoint `1` and immediately after that produces:
 
 `InvalidOperationException("Simulated drone failure.")`
 
 Oracle:
 
-The async flight failure propagates to the Part C orchestration boundary and is observable there. The outer orchestration/application boundary handles the failure through the documented `try/catch` path; the failure is not silently converted into a successful result.
+The async flight failure propagates to the Part C orchestration boundary and is observable there. The `Faulted` event carries the relevant `InvalidOperationException`, and the outer orchestration/application boundary handles the failure through the documented `try/catch` path; the failure is not silently converted into a successful result.
 
 ---
 
@@ -615,7 +615,7 @@ This verification is deliberately separate from the deterministic client-side HT
 
 `PD2 → AC-D1 → VB-D01`
 
-HTTP boundary/client / Fact.
+HTTP boundary/client / Theory.
 
 Oracle:
 
@@ -625,13 +625,13 @@ Known route fixtures map to the exact documented values:
 - `Beta` → `MaxCheckpoints == 5`;
 - `Gamma` → `MaxCheckpoints == 2`.
 
-The response maps to `RouteData` using the deterministic drone-name mapping defined in `03-domain-and-rules.md`. Unknown drone names are verified separately by `HTTP08`.
+The response maps to `RouteData` using the deterministic drone-name mapping defined in `03-domain-and-rules.md`. The valid `maxCheckpoints = 0` boundary is covered separately within the same verification area. Unknown drone names are verified separately by `HTTP08`.
 
 ### HTTP02 — ControlTower_ShouldReturnWeatherData
 
 `PD3 → AC-D2 → VB-D02`
 
-HTTP boundary/client / Fact.
+HTTP boundary/client / Theory.
 
 Oracle:
 
@@ -645,7 +645,7 @@ HTTP boundary/client / Fact.
 
 Oracle:
 
-Restriction response maps correctly, including the no-restriction case. The relevant boundary where the restriction equals the route maximum is also covered.
+Restriction response maps correctly, including the no-restriction case. The relevant boundaries where the restriction is below, equal to, and above the route maximum are covered.
 
 ### HTTP04 — ControlTower_Data_ShouldProduceFinalSimulationConfiguration
 
@@ -689,9 +689,9 @@ The automated test uses a controlled test HTTP handler that intentionally waits 
 
 `PD6/E5 → AC-D5/AC-EDGE-5 → VB-D05/VB-E05`
 
-HTTP boundary/client / Fact.
+HTTP boundary/client / Theory cases.
 
-The automated coverage is split by response contract: weather cases cover malformed/missing/unsupported weather data, while route/restriction cases cover missing or negative `maxCheckpoints`.
+The automated coverage is split by response contract: weather cases cover malformed/missing/unsupported weather data, while route/restriction cases cover missing or negative `maxCheckpoints`. Valid boundary cases such as route `0` and restriction values at or above the route maximum are covered by the corresponding success tests.
 
 Oracle:
 
@@ -832,6 +832,7 @@ Also test response validation with:
 - `null`;
 - value below route maximum;
 - value equal to route maximum;
+- value above route maximum;
 - invalid negative value.
 
 ### HTTP failures

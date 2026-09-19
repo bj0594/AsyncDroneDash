@@ -41,6 +41,27 @@ public class ControlTowerTests
         Assert.Equal(expectedMaxCheckpoints, result.MaxCheckpoints);
     }
 
+    [Fact]
+    public async Task ControlTower_ZeroRouteCheckpoints_ShouldBeAccepted()
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(_ =>
+            JsonResponse("""{"maxCheckpoints":0}"""));
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+
+        // Act
+        var result = await client.GetRouteAsync("Alpha");
+
+        // Assert
+        Assert.Equal(0, result.MaxCheckpoints);
+    }
+
     [Theory]
     [InlineData("clear")]
     [InlineData("wind")]
@@ -106,7 +127,7 @@ public class ControlTowerTests
     {
         // Arrange
         var handler = new StubHttpMessageHandler(_ =>
-            JsonResponse("null"));
+            JsonResponse("""{"maxCheckpoints":null}"""));
 
         using var httpClient = new HttpClient(handler)
         {
@@ -138,6 +159,50 @@ public class ControlTowerTests
 
                 "/restrictions" =>
                     JsonResponse("""{"maxCheckpoints":3}"""),
+
+                _ =>
+                    new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        });
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://localhost:8080/")
+        };
+
+        var client = new ControlTowerClient(httpClient);
+        var orchestrator = new ControlTowerOrchestrator(client);
+
+        var drone = new DroneModel
+        {
+            Name = "Alpha",
+            MaxCheckpoints = 10,
+            DelayMs = 100
+        };
+
+        // Act
+        var result = await orchestrator.LoadSequentialAsync(drone);
+
+        // Assert
+        Assert.Equal(3, result.MaxCheckpoints);
+    }
+
+    [Fact]
+    public async Task ControlTower_RestrictionAboveRouteMaximum_ShouldPreserveRouteMaximum()
+    {
+        // Arrange
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/route" =>
+                    JsonResponse("""{"maxCheckpoints":3}"""),
+
+                "/weather" =>
+                    JsonResponse("""{"condition":"clear"}"""),
+
+                "/restrictions" =>
+                    JsonResponse("""{"maxCheckpoints":5}"""),
 
                 _ =>
                     new HttpResponseMessage(HttpStatusCode.NotFound)
@@ -516,7 +581,8 @@ public class ControlTowerTests
             releaseRequests.Set();
         }
 
-        var concurrent = await concurrentTask;
+        var concurrent = await concurrentTask.WaitAsync(
+            TimeSpan.FromSeconds(1));
 
         Assert.Equal(
             sequential.Name,

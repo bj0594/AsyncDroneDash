@@ -13,7 +13,7 @@ public class DroneModelAndFlightTests
         {
             Name = "Alpha",
             MaxCheckpoints = 3,
-            DelayMs = 0
+            DelayMs = 1
         };
 
         // Act
@@ -86,7 +86,7 @@ public class DroneModelAndFlightTests
         // Assert
         var checkpoints = events
             .Where(e => e.Type == FlightEventType.CheckpointReached)
-            .Select(e => e.Checkpoint)
+            .Select(e => e.Checkpoint!.Value)
             .ToList();
 
         Assert.Equal(
@@ -185,6 +185,7 @@ public class DroneModelAndFlightTests
         Assert.Equal(6, events.Count);
 
         Assert.Equal(FlightEventType.Started, events[0].Type);
+        Assert.Null(events[0].Checkpoint);
 
         Assert.Equal(FlightEventType.CheckpointReached, events[1].Type);
         Assert.Equal(FlightEventType.CheckpointReached, events[2].Type);
@@ -192,6 +193,9 @@ public class DroneModelAndFlightTests
         Assert.Equal(FlightEventType.CheckpointReached, events[4].Type);
 
         Assert.Equal(FlightEventType.Completed, events[5].Type);
+        Assert.Null(events[5].Checkpoint);
+        Assert.All(events, flightEvent =>
+            Assert.Null(flightEvent.Exception));
 
         Assert.Equal(0, events[1].Checkpoint);
         Assert.Equal(1, events[2].Checkpoint);

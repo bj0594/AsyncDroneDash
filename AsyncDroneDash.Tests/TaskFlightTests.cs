@@ -68,11 +68,22 @@ public class TaskFlightTests
         };
 
         var events = new List<FlightEvent>();
+        using var releaseCompleted = new ManualResetEventSlim(false);
+        var betaCompleted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         Action<FlightEvent> report = flightEvent =>
         {
             lock (events)
             {
                 events.Add(flightEvent);
+            }
+
+            if (flightEvent.DroneName == "Beta" &&
+                flightEvent.Type == FlightEventType.Completed)
+            {
+                betaCompleted.TrySetResult(true);
+                releaseCompleted.Wait();
             }
         };
 
@@ -82,9 +93,22 @@ public class TaskFlightTests
             failureDroneName: null,
             report);
 
-        await combinedTask;
+        try
+        {
+            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
-        // Assert
+            // Assert
+            Assert.False(
+                combinedTask.IsCompleted,
+                "Combined task must not complete while a participating drone is still finishing.");
+        }
+        finally
+        {
+            releaseCompleted.Set();
+        }
+
+        await combinedTask.WaitAsync(TimeSpan.FromSeconds(1));
+
         Assert.True(combinedTask.IsCompletedSuccessfully);
 
         Assert.All(drones, drone =>
@@ -150,7 +174,7 @@ public class TaskFlightTests
             e => e.Type == FlightEventType.Faulted);
 
         Assert.True(checkpointOneIndex >= 0);
-        Assert.True(faultedIndex > checkpointOneIndex);
+        Assert.Equal(checkpointOneIndex + 1, faultedIndex);
 
         var faultedEvent = droneEvents[faultedIndex];
 

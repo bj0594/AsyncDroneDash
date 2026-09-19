@@ -125,6 +125,7 @@ public class AsyncFlightTests
                 FlightEventType.Started,
                 FlightEventType.CheckpointReached,
                 FlightEventType.CheckpointReached,
+                FlightEventType.CheckpointReached,
                 FlightEventType.Completed
             },
             alphaEvents.Select(e => e.Type));
@@ -133,6 +134,7 @@ public class AsyncFlightTests
             new[]
             {
                 FlightEventType.Started,
+                FlightEventType.CheckpointReached,
                 FlightEventType.CheckpointReached,
                 FlightEventType.CheckpointReached,
                 FlightEventType.Completed
@@ -156,7 +158,7 @@ public class AsyncFlightTests
     }
 
     [Fact]
-    public async Task AsyncFlight_ShouldAwaitTaskWhenAll()
+    public async Task AsyncFlight_MultipleDrones_ShouldCompleteAfterAllFlights()
     {
         // Arrange
         var alpha = new DroneModel
@@ -174,11 +176,22 @@ public class AsyncFlightTests
         };
 
         var events = new List<FlightEvent>();
+        using var releaseBetaCompletion = new ManualResetEventSlim(false);
+        var betaCompleted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         Action<FlightEvent> report = flightEvent =>
         {
             lock (events)
             {
                 events.Add(flightEvent);
+            }
+
+            if (flightEvent.DroneName == "Beta" &&
+                flightEvent.Type == FlightEventType.Completed)
+            {
+                betaCompleted.TrySetResult(true);
+                releaseBetaCompletion.Wait();
             }
         };
 
@@ -188,9 +201,22 @@ public class AsyncFlightTests
             failureDroneName: null,
             report);
 
-        await task;
+        try
+        {
+            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
-        // Assert
+            // Assert
+            Assert.False(
+                task.IsCompleted,
+                "Overall completion must wait for all participating async flights.");
+        }
+        finally
+        {
+            releaseBetaCompletion.Set();
+        }
+
+        await task.WaitAsync(TimeSpan.FromSeconds(1));
+
         Assert.True(task.IsCompletedSuccessfully);
 
         Assert.Contains(
@@ -251,11 +277,24 @@ public class AsyncFlightTests
 
         Assert.Equal("Alpha", failureEvent.DroneName);
 
-        Assert.Contains(
-            events,
+        var checkpointOneIndex = events.FindIndex(
             e => e.DroneName == "Alpha" &&
                  e.Type == FlightEventType.CheckpointReached &&
                  e.Checkpoint == 1);
+
+        var faultedIndex = events.FindIndex(
+            e => e.DroneName == "Alpha" &&
+                 e.Type == FlightEventType.Faulted);
+
+        Assert.True(checkpointOneIndex >= 0);
+        Assert.Equal(checkpointOneIndex + 1, faultedIndex);
+
+        var faultException = Assert.IsType<InvalidOperationException>(
+            failureEvent.Exception);
+
+        Assert.Equal(
+            "Simulated drone failure.",
+            faultException.Message);
 
         Assert.DoesNotContain(
             events,

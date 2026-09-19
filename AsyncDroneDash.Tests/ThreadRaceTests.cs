@@ -118,7 +118,9 @@ public class ThreadRaceTests
             runningGate.Set();
         }
 
-        raceTask.Wait();
+        Assert.True(
+            raceTask.Wait(TimeSpan.FromSeconds(1)),
+            "ThreadRace.RunWithJoin did not complete after the gate was released.");
 
         List<FlightEvent> capturedEvents;
         lock (events)
@@ -189,7 +191,7 @@ public class ThreadRaceTests
 
             var checkpoints = droneEvents
                 .Where(e => e.Type == FlightEventType.CheckpointReached)
-                .Select(e => e.Checkpoint)
+                .Select(e => e.Checkpoint!.Value)
                 .ToList();
 
             Assert.Equal(
@@ -258,7 +260,9 @@ public class ThreadRaceTests
             runningGate.Set();
         }
 
-        raceTask.Wait();
+        Assert.True(
+            raceTask.Wait(TimeSpan.FromSeconds(1)),
+            "ThreadRace.RunWithJoin did not complete after the gate was released.");
 
         Assert.Equal(drones.Length, Volatile.Read(ref startedDrones));
     }
