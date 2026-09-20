@@ -3,6 +3,7 @@ using System.Net;
 
 namespace AsyncDroneDash.Project.Presentation;
 
+// Provides the interactive console interface for running the project's flight demonstrations.
 public sealed class DroneDashMenu
 {
     public async Task RunAsync()
@@ -219,6 +220,7 @@ public sealed class DroneDashMenu
             DelayMs = 100
         };
 
+        // Compare sequential and concurrent loading of the Control Tower configuration.
         var sequentialWatch = Stopwatch.StartNew();
         var sequential = await orchestrator.LoadSequentialAsync(drone);
         sequentialWatch.Stop();

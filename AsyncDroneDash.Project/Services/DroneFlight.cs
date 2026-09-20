@@ -1,5 +1,6 @@
 namespace AsyncDroneDash.Project;
 
+// Executes the core drone flight sequence in blocking and asynchronous forms.
 public sealed class DroneFlight
 {
     public void Run(DroneModel drone, Action<FlightEvent> report)

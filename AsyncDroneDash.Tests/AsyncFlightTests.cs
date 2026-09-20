@@ -188,7 +188,9 @@ public class AsyncFlightTests
 
         try
         {
-            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+            await betaCompleted.Task.WaitAsync(
+                TimeSpan.FromSeconds(1),
+                TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(
@@ -200,7 +202,9 @@ public class AsyncFlightTests
             releaseBetaCompletion.Set();
         }
 
-        await task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        await task.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
 
         Assert.True(task.IsCompletedSuccessfully);
 

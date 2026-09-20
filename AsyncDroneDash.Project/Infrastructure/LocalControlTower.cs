@@ -3,10 +3,12 @@ using System.Text;
 
 namespace AsyncDroneDash.Project;
 
+// Provides the local HTTP server used to simulate the Control Tower.
 public sealed class LocalControlTower : IAsyncDisposable
 {
     public const string Prefix = "http://localhost:8080/";
 
+    // Maximum checkpoint count returned for each drone's route request.
     private static readonly IReadOnlyDictionary<string, int> RouteMaximums =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
@@ -188,8 +190,7 @@ public sealed class LocalControlTower : IAsyncDisposable
 
     private static async Task HandleRouteAsync(HttpListenerContext context)
     {
-        // RawUrl is intentionally read here because it is the assignment's
-        // selected learning point for inspecting request URL/query data.
+        // RawUrl is used here to expose the request URL in the Control Tower log.
         var rawUrl = context.Request.RawUrl ?? string.Empty;
         var droneName = context.Request.QueryString["drone"];
 

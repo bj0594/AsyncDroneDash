@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AsyncDroneDash.Project;
 
+// Demonstrates coordinating drone threads with and without Thread.Join.
 public static class ThreadRace
 {
     public static void RunWithJoin(

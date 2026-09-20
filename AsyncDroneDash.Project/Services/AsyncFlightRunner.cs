@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AsyncDroneDash.Project;
 
+// Coordinates concurrent drone flights and propagates flight failures.
 public static class AsyncFlightRunner
 {
     public static async Task RunAsync(

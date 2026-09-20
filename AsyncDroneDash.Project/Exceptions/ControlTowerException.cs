@@ -1,5 +1,6 @@
 namespace AsyncDroneDash.Project;
 
+// Represents a typed error from the Control Tower communication layer.
 public sealed class ControlTowerException : Exception
 {
     public ControlTowerException(

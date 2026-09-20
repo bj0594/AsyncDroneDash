@@ -567,6 +567,7 @@ public class ControlTowerTests
 
         try
         {
+            // Wait until all three requests have started before allowing any of them to complete.
             await Task.WhenAll(
                 routeStarted.Task,
                 weatherStarted.Task,

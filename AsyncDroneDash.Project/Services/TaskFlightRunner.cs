@@ -1,5 +1,6 @@
 namespace AsyncDroneDash.Project;
 
+// Coordinates thread-based drone flights through TaskCompletionSource and Task.WhenAll.
 public static class TaskFlightRunner
 {
     public static async Task RunAsync(
@@ -14,6 +15,7 @@ public static class TaskFlightRunner
 
         foreach (var drone in drones)
         {
+            // Exposes completion and failure from the thread as a Task for orchestration.
             var completion = new TaskCompletionSource<object?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 

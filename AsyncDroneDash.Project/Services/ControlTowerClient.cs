@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace AsyncDroneDash.Project;
 
+// Handles HTTP communication with the local Control Tower and maps responses to domain data.
 public sealed class ControlTowerClient
 {
     private static readonly string[] SupportedWeatherConditions =
@@ -250,6 +251,7 @@ public sealed class ControlTowerClient
         }
     }
 
+    // Keeps JSON property matching case-insensitive without relying on a serializer configuration.
     private static bool TryGetProperty(
         JsonElement objectElement,
         string propertyName,

@@ -1,5 +1,6 @@
 namespace AsyncDroneDash.Project;
 
+// Combines Control Tower data into the configuration used for a drone flight.
 public sealed class ControlTowerOrchestrator
 {
     private readonly ControlTowerClient _controlTowerClient;
@@ -41,6 +42,7 @@ public sealed class ControlTowerOrchestrator
 
         ValidateDrone(drone);
 
+        // Start all independent requests before waiting for their results.
         Task<RouteData> routeTask = _controlTowerClient.GetRouteAsync(drone.Name);
         Task<WeatherData> weatherTask = _controlTowerClient.GetWeatherAsync();
         Task<RestrictionData?> restrictionTask =

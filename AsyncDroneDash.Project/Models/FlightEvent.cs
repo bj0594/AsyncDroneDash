@@ -1,5 +1,6 @@
 namespace AsyncDroneDash.Project;
 
+// Represents a lifecycle event emitted during a drone flight.
 public enum FlightEventType
 {
     Started,
