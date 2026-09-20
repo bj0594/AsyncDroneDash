@@ -100,7 +100,7 @@ Selections start immediately when the corresponding key is pressed; Enter is not
 dotnet test AsyncDroneDash.slnx
 ```
 
-The test project contains the automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The production implementation follows the locked planning contracts; final runtime verification must be performed in a .NET 10 environment.
+The test project contains the automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The production implementation follows the locked planning contracts. The current project version has been build- and test-verified in a .NET 10 environment, with manual runtime verification completed for the application menu and Parts A–D.
 
 ## Part A — Thread Race
 
@@ -253,4 +253,4 @@ The relative execution time is an observation for the reflection, not a correctn
 
 ## Reflection
 
-`reflection.md` contains the five required reflection questions and the Part D learning points. The final manual observations from the no-Join and sequential-versus-concurrent HTTP demonstrations are recorded there before submission.
+`reflection.md` contains the five required reflection questions and the Part D learning points, including the observed no-Join behaviour and the sequential-versus-concurrent HTTP run.

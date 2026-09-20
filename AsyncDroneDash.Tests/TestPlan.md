@@ -992,15 +992,20 @@ Observation boundary:
 
 ## 19. Status
 
-Planning and test design were finalized against the locked public API, and the production implementation is now present.
+Planning and test design are finalized against the locked public API, and the production implementation is present.
 
-The remaining project-stage actions are:
+Current verification status:
 
-- run the final verification suite in a .NET 10 environment;
-- complete the local HTTP smoke/integration verification;
-- review the runtime observations in `reflection.md`;
-- complete final delivery verification.
+- `dotnet build AsyncDroneDash.slnx` succeeds with no build errors or warnings.
+- `dotnet test AsyncDroneDash.slnx` passes the current automated suite with no failures or skips.
+- Manual runtime verification of the menu and Parts A–D has been completed.
+- The local Control Tower smoke/integration flow has been exercised successfully.
+- The observed runtime results are recorded in `reflection.md`.
 
-The TDD sequence used for implementation was:
+The remaining project-stage work is release hygiene rather than new behaviour: review the final Git diff, confirm only intended files are included, and perform the final delivery check.
+
+The intended development loop remains:
 
     Red → Green → Refactor → Final verification
+
+The test inventory is a planning map, while TDD is an iterative development cycle. They are not the same thing, and Git commits are not required to map one-to-one to individual Red/Green/Refactor cycles.

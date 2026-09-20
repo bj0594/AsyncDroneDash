@@ -32,6 +32,10 @@ The same fact should have one canonical owner. Other documents should reference 
 
 A new implementation detail does not automatically become a requirement. A proposed change that affects observable behaviour, a public contract, scope, or verification must first be reflected in the appropriate planning artifact. Tests are not changed merely to make production code pass; when a test and implementation disagree, resolve the disagreement against the locked contract before changing either side.
 
+### 1.3 Development and Git granularity
+
+The test inventory can cover the whole planned scope while implementation proceeds one small behaviour at a time. The TDD cycle and Git commit boundaries do not have to match one-to-one. Commits should represent coherent, reviewable work rather than artificially splitting every Red, Green, and Refactor step into its own commit.
+
 ---
 
 ## 2. Responsibilities
