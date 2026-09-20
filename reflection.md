@@ -2,52 +2,58 @@
 
 ## 1. What happened when Join was removed in Part A?
 
-With `Join`, the main thread waits until the drone threads have finished, so `All drones have finished.` is printed only after both drones report completion. In my run, the joined flight showed interleaved Alpha and Beta checkpoint output, making concurrent execution visible while the final completion message still appeared after both flights had completed.
+`Join` makes the main thread wait for each drone thread to complete before `RunWithJoin` returns. In the no-`Join` variant, the main thread continues immediately while the drone threads are still working. This means the main-thread message can appear before all checkpoint messages have been written. The order between drone threads is also non-deterministic.
 
-In the no-`Join` run, the main thread continued immediately after starting the drone threads. The message explaining that the main thread continues appeared immediately after the two start events. I then returned to the menu, so I did not use later background output as a correctness observation. The output order between the drone threads is not deterministic because thread scheduling is not deterministic.
-
-The console should therefore be treated as an observation surface, not as a synchronization mechanism. Multiple threads can write to it concurrently, so the order of lines is not a reliable correctness contract.
+This also shows why `Console` is not a good synchronization mechanism. Multiple threads can write at the same time, and which event appears first depends on thread scheduling.
 
 ## 2. Thread/Join, Task/TCS, and async/await
 
-`Thread` gives the most direct control over execution threads. That makes concurrency easy to see, but it also requires explicit thread creation, starting, and joining. A thread represents a concrete execution thread, so this model is comparatively direct but also carries more explicit resource-management responsibility. Exceptions raised on a worker thread do not become a normal return path to the calling thread, so error handling has to be designed separately.
+`Thread` provides direct control over threads and makes concurrent execution easy to see, but the model requires explicit creation, starting, and `Join` of the threads. A thread also represents a dedicated execution resource for the lifetime of the flight. Error handling must be organized separately because an exception inside a thread is not automatically propagated to the main thread.
 
-`Task` is a higher-level abstraction for asynchronous work. In this project, Part B uses `Task.Run` together with one `TaskCompletionSource` per drone. The task represents the operation while the TCS gives explicit control over when that operation is completed or faulted. `Task.WhenAll` then provides a composition point for multiple drones. This removes some of the direct thread-management work of Part A, but the explicit TCS signalling adds boilerplate because completion and failure have to be controlled manually.
+`Task` provides a higher-level abstraction for completion, while `TaskCompletionSource` makes it possible to control when each operation is marked as completed or faulted. In this implementation, the drone operations are started with `Task.Run`, so the work is scheduled through the thread pool rather than requiring one explicitly created `Thread` per drone. One TCS was used per drone, and `Task.WhenAll` was used to coordinate them. The model clearly demonstrates explicit signaling and task composition, but it requires more code than async/await because completion and errors must be controlled manually.
 
-The failure demo also makes `Task.Exception` visible as an `AggregateException` containing the underlying `InvalidOperationException`.
+An important observation is that `Task.Exception` is an `AggregateException`. This makes task state and the underlying error explicitly observable.
 
-`async`/`await` expresses the flight flow more directly: report progress, await the delay, and continue. Multiple flights can overlap without manually creating or joining threads or explicitly completing a TCS. While a drone is waiting in `Task.Delay`, the async method does not need to keep a thread occupied just to represent that waiting period. `await Task.WhenAll` provides the overall coordination boundary with less code and a clearer control flow.
+`async`/`await` expresses the same type of coordination with less boilerplate. The flight itself can read like a sequence — report a checkpoint, wait asynchronously, continue — while multiple flights can still overlap. `await Task.WhenAll` makes overall coordination readable without manual TCS management. Unlike the Thread-based implementation, an async flight waiting in `Task.Delay` does not need to keep a thread occupied just to represent that waiting period.
 
-The main maintenance difference I observed is that the async/await version separates the flight sequence from the mechanics of task completion more cleanly. Task/TCS remains useful when completion must be controlled explicitly by an external event, callback, or adapter boundary rather than by a naturally task-based asynchronous operation.
+This makes the resource model different as well as the syntax. `Thread` gives direct control over dedicated execution threads. The Task/TCS implementation abstracts execution and, in this project, uses thread-pool scheduling. The async/await implementation is the most suitable of the three for this waiting-heavy simulation because the delays are asynchronous and do not require a thread to remain occupied while the delay is in progress.
 
-Overall, the three approaches show increasing levels of abstraction: `Thread` exposes the execution mechanism directly, `Task` represents asynchronous work and composition, and `async`/`await` makes the control flow of asynchronous operations easier to express.
+For maintainability, the main difference is that async/await makes the control flow more directly visible. Task/TCS is still useful when a program needs an explicit external signal for completion or failure, but in this project such manual control was only needed because the assignment was intended to demonstrate the mechanism.
 
 ## 3. What was challenging about asynchronous HTTP?
 
-The main challenge was keeping the entire request path asynchronous while also converting several failure modes into a small, predictable error vocabulary. The client uses one reusable `HttpClient`, asynchronous HTTP calls and asynchronous response reading. Failures are translated into `ControlTowerException` categories such as `RequestFailed`, `NotFound`, `Timeout`, and `InvalidResponse`.
+The most important part was keeping the HTTP flow asynchronous while the client had to translate several types of errors into a stable domain vocabulary. `ControlTowerClient` uses one reused `HttpClient`, `GetAsync`, and asynchronous response reading. HTTP errors are translated into `ControlTowerException` with `RequestFailed`, `NotFound`, `Timeout`, or `InvalidResponse`.
 
-The local control tower also had to process requests asynchronously and introduce variable response time without making timing part of correctness. The concurrent orchestration starts the independent route, weather, and restriction requests before awaiting them together; the sequential version waits for each request before starting the next.
+The local control tower uses `HttpListener.GetContextAsync` and processes received requests asynchronously. Response delays vary by endpoint and include random variation, so the difference between sequential and concurrent calls can be observed without using timing as a test oracle.
 
-This made the effect of concurrency visible without relying on exact elapsed times as a test oracle.
-
-One useful aspect of the implementation was separating the HTTP transport errors from the simulation rules. The client is responsible for interpreting HTTP responses and translating failures into the project's error categories, while the orchestration layer applies the returned route, weather, and restriction data to the drone configuration.
+The concurrent client flow starts the route, weather, and restriction calls before awaiting `Task.WhenAll`. The sequential flow awaits each call before starting the next. Both use the same mapping to the final configuration.
 
 ## 4. When would I choose Task/TCS over pure async/await?
 
-I would use `TaskCompletionSource` when a completion or failure signal comes from something that is not already represented by a natural `Task`-based API. Examples include adapting an event or callback to a `Task`, or exposing explicit completion signalling between components.
+I would choose `TaskCompletionSource` when completion of a `Task` must be controlled by an event or callback that does not already have a natural async API. A classic example is adapting an event-based API to a `Task`, or exposing explicit completion signaling between components.
 
-For ordinary asynchronous workflows, especially when the operations already return tasks and can be composed with `Task.WhenAll`, async/await is usually simpler and easier to maintain.
-
-The important lesson from Part B is therefore not that TCS is the preferred way to write normal asynchronous code. It is that TCS is useful when explicit task completion is itself part of the problem being solved.
+For ordinary sequential async logic, independent async operations, and `Task.WhenAll`, pure async/await normally provides less code and clearer control flow. TCS should therefore have a concrete role in the design rather than being used simply because it is possible.
 
 ## 5. Two concrete problems caused by blocking in asynchronous methods
 
-First, `.Result`, `.Wait()`, and similar blocking calls occupy a thread while the asynchronous operation is waiting. In environments with limited thread-pool capacity, repeated blocking can reduce throughput and can contribute to deadlock problems in synchronization-sensitive environments.
+First, `.Result`, `.Wait()`, or `GetAwaiter().GetResult()` can block a thread when it should instead be available for other work. In environments with limited thread-pool capacity, this can lead to poor throughput and, in some synchronization models, deadlocks.
 
-Second, blocking around I/O reduces the benefit of asynchronous execution. A thread can remain occupied while an HTTP request or other I/O operation waits for an external resource, which can increase queuing and reduce responsiveness as concurrent work grows.
+Second, blocking around I/O can keep resources unnecessarily occupied for longer. A synchronously waiting HTTP call can tie up a thread-pool thread while the network takes time to respond. With multiple concurrent calls, this can cause queuing, lower responsiveness, and poorer scalability.
 
 ## Part D — Concrete learning point
 
-The control tower changed the actual simulation configuration. In the verified run, `Alpha` received a route of 3 checkpoints. `storm` added 500 ms to the original 100 ms delay, and the active restriction reduced the route to 2 checkpoints. The resulting configuration was therefore `MaxCheckpoints = 2` and `DelayMs = 600`.
+The control tower actually changes the simulator's configuration. For `Alpha`, it returned a route of 3 checkpoints, `storm` weather added 500 ms, and an active restriction of 2 checkpoints reduced the final route to 2. An original drone configuration with a 100 ms delay therefore became 600 ms.
 
-The sequential HTTP run took about 1107 ms, while the concurrent run took about 383 ms in that run. The important observation was not the exact numbers, but that the independent requests overlapped in the concurrent version and produced the same final functional configuration. Exact elapsed time depends on the local environment and is therefore treated as an observation rather than a correctness requirement.
+In the observed run, the sequential configuration took approximately 1107 ms, while the concurrent configuration took approximately 383 ms. The important observation was not the exact values, but that the independent HTTP calls overlapped in the concurrent version while producing the same final functional configuration.
+
+The variable response delays also made the difference visible in the console logs. The request start messages for route, weather, and restrictions could appear before the corresponding requests had completed, demonstrating that the concurrent orchestration was not simply executing the calls one after another.
+
+These timings are environment-dependent and are therefore treated as runtime observations rather than correctness criteria.
+
+## Conclusion
+
+The three execution models show increasing abstraction over the same basic problem. `Thread` gives the clearest direct view of thread creation and joining, Task/TCS demonstrates explicit task completion and error signaling, and async/await provides the clearest expression of asynchronous control flow.
+
+The project also showed that the most useful abstraction depends on the problem being solved. Explicit Thread and TCS handling are valuable for demonstrating how the underlying mechanisms work, while async/await is easier to maintain when the workflow is naturally asynchronous and dominated by waiting.
+
+The Control Tower portion reinforced the same lesson at the HTTP level: independent I/O operations can be started together and composed with `Task.WhenAll`, allowing the program to make progress without unnecessarily serializing work.
