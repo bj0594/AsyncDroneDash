@@ -13,6 +13,25 @@ The required execution-model differences remain visible in the implementation.
 
 No additional architectural layers are justified.
 
+### 1.1 Planning artifact roles
+
+The planning set is adaptive. A project does not need a fixed number of planning files. Files are split only when size, complexity, responsibility separation, or usability makes the split useful. Smaller projects may keep the same decisions in one compact planning document.
+
+The roles are:
+
+- `01-requirements.md` — what must be true.
+- `02-scope-and-success.md` — what is included, excluded, and considered done.
+- `03-domain-and-rules.md` — domain/data/error contracts and rules.
+- `04-design-and-traceability.md` — responsibilities, boundaries, public contracts, and requirement traceability.
+- `05-behaviour-design.md` — observable behaviours and scenarios.
+- `TestPlan.md` — how those contracts and behaviours are verified.
+
+The same fact should have one canonical owner. Other documents should reference it rather than restating it.
+
+### 1.2 Change-control rule
+
+A new implementation detail does not automatically become a requirement. A proposed change that affects observable behaviour, a public contract, scope, or verification must first be reflected in the appropriate planning artifact. Tests are not changed merely to make production code pass; when a test and implementation disagree, resolve the disagreement against the locked contract before changing either side.
+
 ---
 
 ## 2. Responsibilities
@@ -317,88 +336,21 @@ The original exception is preserved as `InnerException` where useful.
 
 ---
 
-## 5. Part A design
+## 5. Execution-model decisions
 
-    Create drones
+### Part A — Thread + Join
 
-    → create one Thread per drone
+The runner creates one `Thread` per drone, starts all threads, and uses `Join` in the normal path. The no-Join path intentionally returns without waiting. Scheduling order is not a contract.
 
-    → start all Threads
+### Part B — Task + TaskCompletionSource
 
-    → execute DroneFlight
+The runner creates one `TaskCompletionSource` per drone and exposes those tasks through `Task.WhenAll`. The TCS is the explicit completion/failure signal; the simulated failure is injected at the orchestration boundary after checkpoint `1`. `Task.Exception` is observed explicitly in the demonstration.
 
-    → Join all Threads
+### Part C — async/await
 
-    → report overall completion
+The runner starts independent asynchronous flights and coordinates them with `await Task.WhenAll`. Failure is handled at the orchestration boundary and propagated to the presentation layer. `.Wait()`, `.Result`, and `.GetAwaiter().GetResult()` are prohibited in this path.
 
-No-Join:
-
-    Create and start Threads
-
-    → do not Join
-
-    → main thread continues
-
-Exact scheduling order is not a contract.
-
-The automated concurrency test uses controlled observation/synchronization rather than elapsed-time assumptions.
-
----
-
-## 6. Part B design
-
-    Create drones
-
-    → create one TCS per drone
-
-    → start drone work
-
-    → selected failure target reaches checkpoint 1
-
-    → report Faulted FlightEvent for the selected failure drone
-
-    → fault target TCS
-
-    → complete/fault remaining TCS values
-
-    → Task.WhenAll
-
-    → observe success/failure
-
-Failure contract:
-
-    InvalidOperationException("Simulated drone failure.")
-
-The failure is introduced by the Part B scenario rather than by a permanent `DroneModel` property.
-
-The selected failure target is detected at its `CheckpointReached(1)` event by the Part B runner's failure-scenario callback.
-
----
-
-## 7. Part C design
-
-    Create drones
-
-    → create async flight tasks
-
-    → try
-        → await Task.WhenAll
-    → catch
-        → report Faulted FlightEvent for the failing drone
-        → rethrow original failure
-    → Console / Menu handles propagated failure
-
-`.Wait()` and `.Result` are prohibited in the async execution path.
-
-The selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`.
-
-The failure propagates to the Part C orchestration boundary, where it produces a `Faulted` `FlightEvent` for the failing drone, rethrows the original failure, and is handled without treating the run as successful.
-
-The propagated failure is then handled by the Console / Menu boundary for user-facing error reporting.
-
-Concurrent progress is verified through observable behaviour and implementation inspection.
-
----
+The detailed observable flows and vertical behaviours belong to `05-behaviour-design.md`; this document records the architectural decisions that make those behaviours possible.
 
 ## 8. Part D design
 

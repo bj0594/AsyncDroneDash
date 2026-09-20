@@ -82,105 +82,11 @@ Validation is enforced at the flight boundary.
 
 ---
 
-## Core behaviours
+## Contract ownership
 
-### B1 — Valid drone configuration
+This document is the source of truth for domain data, validation rules, endpoint contracts, response shapes, error categories, and simulation mapping.
 
-A valid drone configuration can be used for a normal flight.
-
-### B2 — Checkpoint progression
-
-A successful flight reports `0..MaxCheckpoints`.
-
-### B3 — Checkpoint order
-
-Checkpoints are ascending, with no skipped or duplicated checkpoint and no value above `MaxCheckpoints`.
-
-### B4 — Checkpoint delay
-
-`DelayMs` is applied between consecutive checkpoint steps.
-
-### B5 — Flight lifecycle
-
-A successful flight reports `Started`, checkpoint events, and `Completed`.
-
----
-
-## Part A behaviours
-
-### B6 — Concurrent thread flights
-
-At least two drones perform their flights concurrently on separate `Thread` instances.
-
-### B7 — Joined completion
-
-With `Join`, overall completion is reported only after all required threads finish.
-
-### B8 — No-Join behaviour
-
-Without `Join`, the main thread can continue before all drone threads finish.
-
-### B9 — Non-deterministic console output
-
-Concurrent console output may be interleaved or appear in different orders.
-
----
-
-## Part B behaviours
-
-### B10 — Task-based flight completion
-
-Each drone flight has a `Task` representing completion or failure.
-
-### B11 — Individual completion signalling
-
-Each participating drone has one `TaskCompletionSource`.
-
-### B12 — Combined task completion
-
-Multiple drone tasks are coordinated with `Task.WhenAll`.
-
-### B13 — Deterministic failure
-
-The Part B demonstration designates one participating drone as the simulated failure target. After that drone reports checkpoint `1`, its TCS is faulted with:
-
-`InvalidOperationException("Simulated drone failure.")`
-
-The failure is introduced by the Part B scenario rather than by a permanent `DroneModel` property.
-
-### B14 — Failure propagation
-
-The faulted TCS/task reaches the orchestration layer.
-
-### B15 — Task.Exception observation
-
-`Task.Exception` is an `AggregateException` containing the simulated failure.
-
----
-
-## Part C behaviours
-
-### B16 — Async flight
-
-A drone flight is represented by an asynchronous `Task` operation.
-
-### B17 — Async checkpoint delay
-
-Checkpoint delays use `await Task.Delay`.
-
-### B18 — Concurrent async flights
-
-Multiple drone flights can make overlapping progress.
-
-### B19 — Combined async completion
-
-Multiple async flights are coordinated using `await Task.WhenAll`.
-
-### B20 — Async failure handling
-
-The Part C demonstration uses the same deterministic failure scenario as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`. The failure propagates to the Part C orchestration boundary, where the documented error-handling path handles it without treating the run as successful.
-
----
+Observable behaviour IDs (`B*` and `VB*`) are defined in `05-behaviour-design.md`. Requirement-to-verification traceability is defined in `04-design-and-traceability.md` and `AsyncDroneDash.Tests/TestPlan.md`. This separation prevents the same contract from being rewritten in several planning documents.
 
 # Part D — Optional project target
 

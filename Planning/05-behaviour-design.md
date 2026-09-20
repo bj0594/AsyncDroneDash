@@ -1,5 +1,7 @@
 # Async Drone Dash — Behaviour Design
 
+This document owns observable behaviour IDs (`B*` and `VB*`) and their scenarios. It intentionally does not redefine domain/data contracts owned by `03-domain-and-rules.md` or the full requirement-to-verification matrix owned by `04-design-and-traceability.md` and `TestPlan.md`.
+
 ## 1. Common flight behaviour
 
 Start
