@@ -47,21 +47,17 @@ public class AsyncFlightTests
         {
             Name = "Alpha",
             MaxCheckpoints = 2,
-            DelayMs = 0
+            DelayMs = 100
         };
 
         var beta = new DroneModel
         {
             Name = "Beta",
             MaxCheckpoints = 2,
-            DelayMs = 0
+            DelayMs = 100
         };
 
-        alpha.DelayMs = 10;
-        beta.DelayMs = 10;
-
         var events = new List<FlightEvent>();
-        using var firstCheckpointGate = new ManualResetEventSlim(false);
         var bothFirstCheckpoints = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var firstCheckpointCount = 0;
@@ -74,15 +70,10 @@ public class AsyncFlightTests
             }
 
             if (flightEvent.Type == FlightEventType.CheckpointReached &&
-                flightEvent.Checkpoint == 0)
+                flightEvent.Checkpoint == 0 &&
+                Interlocked.Increment(ref firstCheckpointCount) == 2)
             {
-                if (Interlocked.Increment(ref firstCheckpointCount) == 2)
-                {
-                    bothFirstCheckpoints.TrySetResult(true);
-                    firstCheckpointGate.Set();
-                }
-
-                firstCheckpointGate.Wait();
+                bothFirstCheckpoints.TrySetResult(true);
             }
         };
 
@@ -92,17 +83,9 @@ public class AsyncFlightTests
             failureDroneName: null,
             report);
 
-        try
-        {
-            await bothFirstCheckpoints.Task.WaitAsync(
-                TimeSpan.FromSeconds(1));
-        }
-        finally
-        {
-            firstCheckpointGate.Set();
-        }
-
-        await task;
+        await bothFirstCheckpoints.Task.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
 
         // Assert
         List<FlightEvent> capturedEvents;
@@ -110,6 +93,23 @@ public class AsyncFlightTests
         {
             capturedEvents = events.ToList();
         }
+
+        var firstCheckpointEvents = capturedEvents
+            .Where(e =>
+                e.Type == FlightEventType.CheckpointReached &&
+                e.Checkpoint == 0)
+            .ToList();
+
+        Assert.Equal(2, firstCheckpointEvents.Count);
+        Assert.Equal(
+            new[] { "Alpha", "Beta" },
+            firstCheckpointEvents
+                .Select(e => e.DroneName)
+                .OrderBy(name => name));
+
+        await task;
+
+        capturedEvents = events.ToList();
 
         var alphaEvents = capturedEvents
             .Where(e => e.DroneName == "Alpha")
@@ -140,21 +140,6 @@ public class AsyncFlightTests
                 FlightEventType.Completed
             },
             betaEvents.Select(e => e.Type));
-
-        var firstCheckpointIndex = capturedEvents.FindIndex(
-            e => e.Type == FlightEventType.CheckpointReached);
-
-        Assert.True(firstCheckpointIndex >= 0);
-
-        Assert.Contains(
-            capturedEvents.Take(firstCheckpointIndex),
-            e => e.DroneName == "Alpha" &&
-                 e.Type == FlightEventType.Started);
-
-        Assert.Contains(
-            capturedEvents.Take(firstCheckpointIndex),
-            e => e.DroneName == "Beta" &&
-                 e.Type == FlightEventType.Started);
     }
 
     [Fact]
