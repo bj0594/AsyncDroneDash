@@ -262,14 +262,16 @@ public class AsyncFlightTests
 
         Assert.Equal("Alpha", failureEvent.DroneName);
 
-        var checkpointOneIndex = events.FindIndex(
-            e => e.DroneName == "Alpha" &&
-                 e.Type == FlightEventType.CheckpointReached &&
+        var alphaEvents = events
+            .Where(e => e.DroneName == "Alpha")
+            .ToList();
+
+        var checkpointOneIndex = alphaEvents.FindIndex(
+            e => e.Type == FlightEventType.CheckpointReached &&
                  e.Checkpoint == 1);
 
-        var faultedIndex = events.FindIndex(
-            e => e.DroneName == "Alpha" &&
-                 e.Type == FlightEventType.Faulted);
+        var faultedIndex = alphaEvents.FindIndex(
+            e => e.Type == FlightEventType.Faulted);
 
         Assert.True(checkpointOneIndex >= 0);
         Assert.Equal(checkpointOneIndex + 1, faultedIndex);
