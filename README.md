@@ -42,21 +42,27 @@ Async Drone Dash/
 │   ├── 04-design-and-traceability.md
 │   └── 05-behaviour-design.md
 ├── AsyncDroneDash.Project/
+│   ├── Exceptions/
+│   │   ├── ControlTowerErrorKind.cs
+│   │   └── ControlTowerException.cs
+│   ├── Infrastructure/
+│   │   └── LocalControlTower.cs
+│   ├── Models/
+│   │   ├── DroneModel.cs
+│   │   ├── FlightEvent.cs
+│   │   ├── RestrictionData.cs
+│   │   ├── RouteData.cs
+│   │   └── WeatherData.cs
+│   ├── Presentation/
+│   │   └── DroneDashMenu.cs
+│   ├── Services/
+│   │   ├── AsyncFlightRunner.cs
+│   │   ├── ControlTowerClient.cs
+│   │   ├── ControlTowerOrchestrator.cs
+│   │   ├── DroneFlight.cs
+│   │   ├── TaskFlightRunner.cs
+│   │   └── ThreadRace.cs
 │   ├── Program.cs
-│   ├── DroneModel.cs
-│   ├── FlightEvent.cs
-│   ├── DroneFlight.cs
-│   ├── ThreadRace.cs
-│   ├── TaskFlightRunner.cs
-│   ├── AsyncFlightRunner.cs
-│   ├── RouteData.cs
-│   ├── WeatherData.cs
-│   ├── RestrictionData.cs
-│   ├── ControlTowerErrorKind.cs
-│   ├── ControlTowerException.cs
-│   ├── ControlTowerClient.cs
-│   ├── ControlTowerOrchestrator.cs
-│   ├── LocalControlTower.cs
 │   └── AsyncDroneDash.Project.csproj
 ├── AsyncDroneDash.Tests/
 │   ├── TestPlan.md
@@ -89,6 +95,7 @@ dotnet run --project .\AsyncDroneDash.Project
 ```
 
 The application provides a menu for Parts A–D.
+Selections are activated immediately when the corresponding key is pressed; Enter is not required.
 
 ## Run automated tests
 

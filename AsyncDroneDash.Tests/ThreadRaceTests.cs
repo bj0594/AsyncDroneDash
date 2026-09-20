@@ -57,7 +57,7 @@ public class ThreadRaceTests
     }
 
     [Fact]
-    public void ThreadRace_WithJoin_ShouldWaitForAllDrones()
+    public async Task ThreadRace_WithJoin_ShouldWaitForAllDrones()
     {
         // Arrange
         var drones = new[]
@@ -95,18 +95,18 @@ public class ThreadRaceTests
                     allStarted.Set();
                 }
 
-                runningGate.Wait();
+                runningGate.Wait(TestContext.Current.CancellationToken);
             }
         };
 
         // Act
-        var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
+        var raceTask = RunJoinOffTestThread(drones, report);
 
         try
         {
             // Assert
             Assert.True(
-                allStarted.Wait(TimeSpan.FromSeconds(1)),
+                allStarted.Wait(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken),
                 "Expected all participating drone threads to reach the running phase.");
 
             Assert.False(
@@ -118,9 +118,9 @@ public class ThreadRaceTests
             runningGate.Set();
         }
 
-        Assert.True(
-            raceTask.Wait(TimeSpan.FromSeconds(1)),
-            "ThreadRace.RunWithJoin did not complete after the gate was released.");
+        await raceTask.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
 
         List<FlightEvent> capturedEvents;
         lock (events)
@@ -201,7 +201,7 @@ public class ThreadRaceTests
     }
 
     [Fact]
-    public void ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently()
+    public async Task ThreadRace_MultipleDrones_ShouldEnterRunningPhaseConcurrently()
     {
         // Arrange
         var drones = new[]
@@ -239,18 +239,18 @@ public class ThreadRaceTests
                     bothStarted.Set();
                 }
 
-                runningGate.Wait();
+                runningGate.Wait(TestContext.Current.CancellationToken);
             }
         };
 
         // Act
-        var raceTask = Task.Run(() => ThreadRace.RunWithJoin(drones, report));
+        var raceTask = RunJoinOffTestThread(drones, report);
 
         try
         {
             // Assert
             Assert.True(
-                bothStarted.Wait(TimeSpan.FromSeconds(1)),
+                bothStarted.Wait(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken),
                 "Expected all participating drones to enter the running phase before progress continued.");
 
             Assert.False(raceTask.IsCompleted);
@@ -260,10 +260,19 @@ public class ThreadRaceTests
             runningGate.Set();
         }
 
-        Assert.True(
-            raceTask.Wait(TimeSpan.FromSeconds(1)),
-            "ThreadRace.RunWithJoin did not complete after the gate was released.");
+        await raceTask.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(drones.Length, Volatile.Read(ref startedDrones));
     }
+    private static Task RunJoinOffTestThread(
+        IReadOnlyList<DroneModel> drones,
+        Action<FlightEvent> report)
+    {
+        return Task.Run(
+            () => ThreadRace.RunWithJoin(drones, report),
+            TestContext.Current.CancellationToken);
+    }
+
 }

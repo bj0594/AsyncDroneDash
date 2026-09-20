@@ -83,7 +83,7 @@ public class TaskFlightTests
                 flightEvent.Type == FlightEventType.Completed)
             {
                 betaCompleted.TrySetResult(true);
-                releaseCompleted.Wait();
+                releaseCompleted.Wait(TestContext.Current.CancellationToken);
             }
         };
 
@@ -95,7 +95,7 @@ public class TaskFlightTests
 
         try
         {
-            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(
@@ -107,7 +107,7 @@ public class TaskFlightTests
             releaseCompleted.Set();
         }
 
-        await combinedTask.WaitAsync(TimeSpan.FromSeconds(1));
+        await combinedTask.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
         Assert.True(combinedTask.IsCompletedSuccessfully);
 

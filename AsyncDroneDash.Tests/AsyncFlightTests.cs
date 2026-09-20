@@ -176,7 +176,7 @@ public class AsyncFlightTests
                 flightEvent.Type == FlightEventType.Completed)
             {
                 betaCompleted.TrySetResult(true);
-                releaseBetaCompletion.Wait();
+                releaseBetaCompletion.Wait(TestContext.Current.CancellationToken);
             }
         };
 
@@ -188,7 +188,7 @@ public class AsyncFlightTests
 
         try
         {
-            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            await betaCompleted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(
@@ -200,7 +200,7 @@ public class AsyncFlightTests
             releaseBetaCompletion.Set();
         }
 
-        await task.WaitAsync(TimeSpan.FromSeconds(1));
+        await task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
         Assert.True(task.IsCompletedSuccessfully);
 
@@ -256,9 +256,9 @@ public class AsyncFlightTests
             exception.Message);
 
         var failureEvent = Assert.Single(
-            events.Where(e =>
-                e.DroneName == "Alpha" &&
-                e.Type == FlightEventType.Faulted));
+            events,
+            e => e.DroneName == "Alpha" &&
+                 e.Type == FlightEventType.Faulted);
 
         Assert.Equal("Alpha", failureEvent.DroneName);
 

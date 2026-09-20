@@ -251,9 +251,6 @@ The async path remains asynchronous throughout execution.
 
 The failure scenario uses the same deterministic contract as Part B: the selected failure drone reports checkpoint `1` and then produces `InvalidOperationException("Simulated drone failure.")`.
 
-The failure propagates to the Part C orchestration boundary, where the documented error-handling path produces a `Faulted` `FlightEvent` for the failing drone, rethrows the original failure, and does not treat the run as successful.
-
-The runner uses the same failure-trigger mechanism as Part B: when the selected failure drone reports `CheckpointReached(1)`, the runner triggers the simulated failure, reports the corresponding `Faulted` `FlightEvent`, and propagates the original failure to the orchestration error-handling path.
 
 ### `ControlTowerClient`
 
@@ -382,7 +379,7 @@ The selected failure target is detected at its `CheckpointReached(1)` event by t
 
     Create drones
 
-    → start async flights
+    → create async flight tasks
 
     → try
         → await Task.WhenAll

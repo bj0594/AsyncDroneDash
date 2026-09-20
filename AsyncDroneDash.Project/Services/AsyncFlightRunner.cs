@@ -17,11 +17,11 @@ public static class AsyncFlightRunner
 
         foreach (var drone in drones)
         {
-            flights.Add(Task.Run(() => RunDroneAsync(
+            flights.Add(RunDroneAsync(
                 drone,
                 failureDroneName,
                 report,
-                faultedDrones)));
+                faultedDrones));
         }
 
         try

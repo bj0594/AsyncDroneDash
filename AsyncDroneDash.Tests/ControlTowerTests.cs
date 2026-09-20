@@ -537,7 +537,7 @@ public class ControlTowerTests
                         break;
                 }
 
-                releaseRequests.Wait();
+                releaseRequests.Wait(TestContext.Current.CancellationToken);
 
                 return request.RequestUri.AbsolutePath switch
                 {
@@ -571,7 +571,9 @@ public class ControlTowerTests
                 routeStarted.Task,
                 weatherStarted.Task,
                 restrictionsStarted.Task)
-                .WaitAsync(TimeSpan.FromSeconds(1));
+                .WaitAsync(
+                    TimeSpan.FromSeconds(1),
+                    TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(concurrentTask.IsCompleted);
@@ -582,7 +584,8 @@ public class ControlTowerTests
         }
 
         var concurrent = await concurrentTask.WaitAsync(
-            TimeSpan.FromSeconds(1));
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(
             sequential.Name,

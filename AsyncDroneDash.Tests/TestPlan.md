@@ -609,7 +609,7 @@ The actual local `HttpListener` service starts successfully on the target Window
 
 using the finalized contracts, and can be stopped/disposed cleanly.
 
-This verification is deliberately separate from the deterministic client-side HTTP tests because the actual listener depends on the target environment, port availability, and Windows HTTP configuration.
+This is a manual target-environment smoke check, deliberately separate from the deterministic client-side HTTP tests because the actual listener depends on the target environment, port availability, and Windows HTTP configuration. It must be performed before final submission.
 
 ### HTTP01 — ControlTower_ShouldReturnRouteData
 
