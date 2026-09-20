@@ -43,6 +43,20 @@ Async Drone Dash/
 │   └── 05-behaviour-design.md
 ├── AsyncDroneDash.Project/
 │   ├── Program.cs
+│   ├── DroneModel.cs
+│   ├── FlightEvent.cs
+│   ├── DroneFlight.cs
+│   ├── ThreadRace.cs
+│   ├── TaskFlightRunner.cs
+│   ├── AsyncFlightRunner.cs
+│   ├── RouteData.cs
+│   ├── WeatherData.cs
+│   ├── RestrictionData.cs
+│   ├── ControlTowerErrorKind.cs
+│   ├── ControlTowerException.cs
+│   ├── ControlTowerClient.cs
+│   ├── ControlTowerOrchestrator.cs
+│   ├── LocalControlTower.cs
 │   └── AsyncDroneDash.Project.csproj
 ├── AsyncDroneDash.Tests/
 │   ├── TestPlan.md
@@ -82,7 +96,7 @@ The application provides a menu for Parts A–D.
 dotnet test
 ```
 
-The test project contains the planned automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The tests are implemented against the locked planning contracts before production implementation, then drive the implementation through Red → Green → Refactor.
+The test project contains the automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The production implementation follows the locked planning contracts; final runtime verification must be performed in a .NET 10 environment.
 
 ## Part A — Thread Race
 

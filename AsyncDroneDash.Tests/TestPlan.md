@@ -989,13 +989,14 @@ Observation boundary:
 
 ## 19. Status
 
-Planning and test design were finalized against the locked public API, and the production implementation phase has now been completed.
+Planning and test design were finalized against the locked public API, and the production implementation is now present.
 
 The remaining project-stage actions are:
 
-- run the final verification suite;
+- run the final verification suite in a .NET 10 environment;
 - complete the local HTTP smoke/integration verification;
-- complete `reflection.md` and final delivery documentation.
+- review the runtime observations in `reflection.md`;
+- complete final delivery verification.
 
 The TDD sequence used for implementation was:
 
