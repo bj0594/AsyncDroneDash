@@ -99,7 +99,9 @@ public sealed class DroneDashMenu
             ReportFlightEvent);
 
         Console.WriteLine(
-            "The main thread continues while the drone threads are still running.");
+            "The main thread continues without waiting for the drone threads.");
+        Console.WriteLine(
+            "Drone output may continue before you return to the operations menu.");
 
         return Task.CompletedTask;
     }
@@ -141,8 +143,13 @@ public sealed class DroneDashMenu
 
         if (failureTask.IsFaulted && failureTask.Exception is not null)
         {
-            Console.WriteLine("Task.Exception:");
-            Console.WriteLine(failureTask.Exception);
+            Console.WriteLine("Task.Exception observed:");
+
+            foreach (var exception in failureTask.Exception.Flatten().InnerExceptions)
+            {
+                Console.WriteLine(
+                    $"- {exception.GetType().Name}: {exception.Message}");
+            }
         }
     }
 
