@@ -24,6 +24,8 @@ Part D is optional in the assignment and active because it is currently selected
 | `DOC` | Documentation/delivery |
 | `HTTP` | Part D HTTP/integration |
 
+Test IDs are stable identifiers rather than a sequential count. Gaps are allowed when a planned test is removed or consolidated; released IDs are not reused silently.
+
 ---
 
 ## 3. Mandatory requirement coverage
@@ -320,9 +322,10 @@ Observe that each drone reports start, each checkpoint, and completion, and that
 
 Observe:
 
-- menu appears;
-- Parts A–D are represented;
-- each part can be entered;
+- the operations menu appears;
+- `Threaded Flight`, `Task-based Flight`, `Asynchronous Flight`, and `Control Tower` are present;
+- each operation can be entered;
+- selections activate without requiring Enter;
 - normal return/exit behaviour works.
 
 ---
@@ -549,13 +552,13 @@ Verify the final reflection compares:
 
 `R1`
 
-`dotnet build` succeeds.
+`dotnet build AsyncDroneDash.slnx` succeeds from the repository root.
 
 ### DOC02 — TestProject_ShouldRun
 
 `R1`
 
-`dotnet test` discovers and runs the suite.
+`dotnet test AsyncDroneDash.slnx` discovers and runs the suite.
 
 ### DOC06 — Repository_ShouldExistInGitHub
 

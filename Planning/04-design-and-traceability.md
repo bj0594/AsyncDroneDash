@@ -24,7 +24,7 @@ The roles are:
 - `03-domain-and-rules.md` — domain/data/error contracts and rules.
 - `04-design-and-traceability.md` — responsibilities, boundaries, public contracts, and requirement traceability.
 - `05-behaviour-design.md` — observable behaviours and scenarios.
-- `TestPlan.md` — how those contracts and behaviours are verified.
+- `AsyncDroneDash.Tests/TestPlan.md` — how those contracts and behaviours are verified.
 
 The same fact should have one canonical owner. Other documents should reference it rather than restating it.
 

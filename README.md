@@ -22,13 +22,10 @@ Parts A–C always take priority over Part D; Part D must not jeopardize complet
 
 Bonus features such as cancellation, retry/backoff, `IAsyncEnumerable`, and drone registration are not required.
 
-## Requirements
+## Prerequisites
 
 - .NET 10 SDK
-
-- Git
-
-- `dotnet` CLI
+- Git (for repository/version-control work)
 
 ## Project structure
 
@@ -85,7 +82,7 @@ There is one README, in the repository root. The test verification plan is kept 
 From the repository root:
 
 ```powershell
-dotnet build
+dotnet build AsyncDroneDash.slnx
 ```
 
 ## Run
@@ -94,13 +91,13 @@ dotnet build
 dotnet run --project .\AsyncDroneDash.Project
 ```
 
-The application provides a menu for Parts A–D.
-Selections are activated immediately when the corresponding key is pressed; Enter is not required.
+The application provides four operations: Threaded Flight, Task-based Flight, Asynchronous Flight, and Control Tower.
+Selections start immediately when the corresponding key is pressed; Enter is not required.
 
 ## Run automated tests
 
 ```powershell
-dotnet test
+dotnet test AsyncDroneDash.slnx
 ```
 
 The test project contains the automated verification described in `AsyncDroneDash.Tests/TestPlan.md`. The production implementation follows the locked planning contracts; final runtime verification must be performed in a .NET 10 environment.
@@ -145,7 +142,7 @@ InvalidOperationException("Simulated drone failure.")
 
 ### Testing Part B
 
-1. Select Part B from the application menu.
+1. Select **Task-based Flight** from the application menu.
 
 2. Run the normal multi-drone scenario and observe `Task.WhenAll` completion.
 
@@ -175,7 +172,7 @@ The async path must not use `.Wait()` or `.Result`.
 
 ### Testing Part C
 
-1. Select Part C from the application menu.
+1. Select **Asynchronous Flight** from the application menu.
 
 2. Run the normal multi-drone scenario and observe overlapping async progress.
 
@@ -209,7 +206,7 @@ The local service uses `http://localhost:8080/` and starts inside the demonstrat
 
 ### Starting Part D
 
-Select Part D from the application menu. The application starts the local control tower automatically and then consumes it through `HttpClient`.
+Select **Control Tower** from the application menu. The application starts the local control tower automatically and then consumes it through `HttpClient`.
 
 On Windows, `HttpListener` uses the HTTP.sys infrastructure. If `HttpListener.Start()` reports `Access Denied`, the URL may need a URL ACL reservation. Run an elevated terminal and reserve the selected URL for the current Windows user, for example:
 
@@ -256,4 +253,4 @@ The relative execution time is an observation for the reflection, not a correctn
 
 ## Reflection
 
-`reflection.md` is completed after implementation and answers the five reflection questions from the assignment, including the differences between Thread/Join, Task/TCS, and async/await. For Part D it also records what was learned from asynchronous HTTP, timeout/error handling, and sequential versus concurrent calls.
+`reflection.md` contains the five required reflection questions and the Part D learning points. The final manual observations from the no-Join and sequential-versus-concurrent HTTP demonstrations are recorded there before submission.
